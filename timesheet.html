@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Doctor Network - Timesheet</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:40px auto;padding:0 20px;color:#202A3A;background:#F7F8FB;}
+  .brand{font-size:12px;color:#8890A6;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px;}
+  .card{background:#fff;border:1px solid #E1E7F2;border-radius:10px;padding:24px;margin-top:12px;}
+  h1{font-size:20px;margin:0 0 6px;}
+  .sub{color:#57607A;font-size:13px;margin-bottom:18px;}
+  p{color:#3A4256;font-size:14px;line-height:1.6;}
+  label{display:block;font-size:12px;color:#57607A;margin-bottom:4px;font-weight:bold;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #EEF1F6;font-size:13px;}
+  input[type=number],input[type=text]{width:100%;box-sizing:border-box;padding:7px 8px;border:1px solid #D3DAE8;border-radius:6px;font-size:13px;font-family:inherit;}
+  input:disabled{background:#F7F8FB;color:#8890A6;}
+  .row{margin-bottom:14px;}
+  .btn{display:inline-block;background:#1E4FD8;color:#fff;border:none;padding:10px 18px;border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;text-decoration:none;font-family:inherit;}
+  .btn:disabled{opacity:.6;cursor:default;}
+  .btn-secondary{background:#EEF1F6;color:#202A3A;}
+  .note{background:#F2F5FC;border-radius:8px;padding:10px 12px;font-size:12px;color:#57607A;margin:14px 0;}
+  .note-error{background:#FBEAE6;color:#B4553F;}
+  .checkline{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#3A4256;margin:14px 0;}
+  .checkline input{margin-top:3px;width:auto;}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .loading{color:#8890A6;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="brand">The Doctor Network</div>
+<div id="app" class="card"><p class="loading">Loading&hellip;</p></div>
+
+<script>
+var API_BASE = "https://vgavcmazlmgflyqlmbns.supabase.co/functions/v1/timesheet-portal";
+
+function qs(name){
+  return new URLSearchParams(window.location.search).get(name) || "";
+}
+function esc(s){
+  return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function fmtDate(iso){
+  if (!iso) return "";
+  try { return new Date(iso + "T00:00:00").toLocaleDateString("en-AU", { day:"numeric", month:"short", year:"numeric" }); }
+  catch (e) { return iso; }
+}
+function dayOfWeek(iso){
+  try { return new Date(iso + "T00:00:00").toLocaleDateString("en-AU", { weekday:"short" }); }
+  catch (e) { return ""; }
+}
+
+var token = qs("token");
+var app = document.getElementById("app");
+
+function renderError(message){
+  app.innerHTML = "<h1>Something's not right</h1><p>" + esc(message) + "</p>";
+}
+
+if (!token){
+  renderError("This link is missing its access token.");
+} else {
+  loadData();
+}
+
+function apiGet(){
+  return fetch(API_BASE + "?token=" + encodeURIComponent(token))
+    .then(function(res){ return res.json().then(function(body){ return { ok: res.ok, body: body }; }); });
+}
+function apiPost(payload){
+  return fetch(API_BASE + "?token=" + encodeURIComponent(token), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then(function(res){ return res.json().then(function(body){ return { ok: res.ok, body: body }; }); });
+}
+
+function loadData(){
+  apiGet().then(function(r){
+    if (!r.ok){ renderError((r.body && r.body.error) || "This link is invalid. Please ask The Doctor Network to resend it."); return; }
+    if (r.body.role === "doctor") renderDoctor(r.body);
+    else renderApprover(r.body);
+  }).catch(function(){ renderError("We couldn't load this timesheet. Please check your connection and try again."); });
+}
+
+function renderDoctor(data, errorMsg){
+  var rows = (data.entries || []).map(function(e){
+    return "<tr><td>" + esc(fmtDate(e.date)) + "</td><td>" + esc(dayOfWeek(e.date)) + "</td>" +
+      "<td><input type=\"number\" min=\"0\" max=\"24\" step=\"0.25\" data-date=\"" + esc(e.date) + "\" data-field=\"hours\" value=\"" + esc(e.hours || "") + "\" " + (data.editable ? "" : "disabled") + " /></td>" +
+      "<td><input type=\"text\" data-date=\"" + esc(e.date) + "\" data-field=\"notes\" value=\"" + esc(e.notes || "") + "\" placeholder=\"e.g. On call\" " + (data.editable ? "" : "disabled") + " /></td></tr>";
+  }).join("");
+
+  app.innerHTML =
+    "<h1>Confirm your hours</h1>" +
+    "<div class=\"sub\">" + esc(data.doctorName) + " at " + esc(data.hospitalName) + " &middot; " + esc(fmtDate(data.periodStart)) + " - " + esc(fmtDate(data.periodEnd)) + "</div>" +
+    (errorMsg ? "<div class=\"note note-error\">" + esc(errorMsg) + "</div>" : "") +
+    (data.note ? "<div class=\"note\">" + esc(data.note) + "</div>" : "") +
+    "<table><thead><tr><th>Date</th><th>Day</th><th>Hours</th><th>Notes</th></tr></thead><tbody>" + rows + "</tbody></table>" +
+    (data.editable ? "<button class=\"btn\" id=\"submitBtn\" type=\"button\">Submit my hours</button>" : "");
+
+  if (data.editable){
+    document.getElementById("submitBtn").addEventListener("click", function(){
+      var btn = this;
+      btn.disabled = true; btn.textContent = "Submitting...";
+      var entries = (data.entries || []).map(function(e){
+        var hoursInput = app.querySelector("input[data-field=hours][data-date=\"" + e.date + "\"]");
+        var notesInput = app.querySelector("input[data-field=notes][data-date=\"" + e.date + "\"]");
+        return { date: e.date, hours: hoursInput ? hoursInput.value : "", notes: notesInput ? notesInput.value : "" };
+      });
+      apiPost({ entries: entries }).then(function(r){
+        if (!r.ok){ renderDoctor(data, (r.body && r.body.error) || "Something went wrong. Please try again."); return; }
+        app.innerHTML = "<h1>Thanks, " + esc(data.doctorName) + "!</h1><p>Your hours for " + esc(fmtDate(data.periodStart)) + " to " + esc(fmtDate(data.periodEnd)) + " have been submitted for approval. No further action needed for now.</p>";
+      }).catch(function(){ renderDoctor(data, "We couldn't save your hours right now. Please try again shortly."); });
+    });
+  }
+}
+
+function renderApprover(data, errorMsg, prefillName){
+  if (data.mode === "waiting"){
+    app.innerHTML = "<h1>Not ready yet</h1><p>" + esc(data.waitingMessage) + "</p>";
+    return;
+  }
+  if (data.mode === "done"){
+    var when = data.approvedAt ? fmtDate(data.approvedAt.slice(0,10)) : "";
+    app.innerHTML = "<h1>Already handled</h1><p>This timesheet was " + (data.status === "Approved" ? "approved" : "actioned") + " by " + esc(data.approvedByName || "") + (when ? " on " + when : "") + ".</p>";
+    return;
+  }
+
+  var rows = (data.entries || []).map(function(e){
+    return "<tr><td>" + esc(fmtDate(e.date)) + "</td><td>" + esc(dayOfWeek(e.date)) + "</td><td>" + esc(e.hours || "0") + "</td><td>" + esc(e.notes || "") + "</td></tr>";
+  }).join("");
+  var total = (data.entries || []).reduce(function(sum, e){ var h = parseFloat(e.hours); return sum + (isNaN(h) ? 0 : h); }, 0);
+
+  app.innerHTML =
+    "<h1>Confirm this timesheet</h1>" +
+    "<div class=\"sub\">" + esc(data.doctorName) + " at " + esc(data.hospitalName) + " &middot; " + esc(fmtDate(data.periodStart)) + " - " + esc(fmtDate(data.periodEnd)) + "</div>" +
+    (errorMsg ? "<div class=\"note note-error\">" + esc(errorMsg) + "</div>" : "") +
+    "<table><thead><tr><th>Date</th><th>Day</th><th>Hours</th><th>Notes</th></tr></thead><tbody>" + rows + "</tbody></table>" +
+    "<p style=\"font-weight:bold;\">Total: " + total + " hours</p>" +
+    "<div class=\"row\"><label>Your full name</label><input type=\"text\" id=\"approverName\" value=\"" + esc(prefillName || "") + "\" /></div>" +
+    "<div class=\"checkline\"><input type=\"checkbox\" id=\"confirmHours\" /><label for=\"confirmHours\" style=\"margin:0;font-weight:normal;\">I confirm the hours shown above are accurate.</label></div>" +
+    "<div class=\"actions\">" +
+    "<button class=\"btn\" id=\"approveBtn\" type=\"button\">Approve hours</button>" +
+    "<button class=\"btn btn-secondary\" id=\"changesBtn\" type=\"button\">Request changes</button>" +
+    "</div>" +
+    "<div class=\"row\" style=\"margin-top:14px;\"><label>Notes (only needed if requesting changes)</label><input type=\"text\" id=\"changeNotes\" placeholder=\"What needs fixing?\" /></div>";
+
+  function currentName(){ return document.getElementById("approverName").value.trim(); }
+
+  document.getElementById("approveBtn").addEventListener("click", function(){
+    var btn = this;
+    var name = currentName();
+    var confirmHours = document.getElementById("confirmHours").checked;
+    if (!name){ renderApprover(data, "Please enter your full name.", name); return; }
+    if (!confirmHours){ renderApprover(data, "Please tick the box confirming the hours are accurate before approving.", name); return; }
+    btn.disabled = true; btn.textContent = "Approving...";
+    apiPost({ approverName: name, confirmHours: true, action: "approve" }).then(function(r){
+      if (!r.ok){ renderApprover(data, (r.body && r.body.error) || "Something went wrong. Please try again.", name); return; }
+      app.innerHTML = "<h1>Approved</h1><p>Thanks " + esc(r.body.approverName) + ", these hours are confirmed. The Doctor Network will take it from here.</p>";
+    }).catch(function(){ renderApprover(data, "We couldn't save this right now. Please try again shortly.", name); });
+  });
+
+  document.getElementById("changesBtn").addEventListener("click", function(){
+    var btn = this;
+    var name = currentName();
+    var notes = document.getElementById("changeNotes").value.trim();
+    if (!name){ renderApprover(data, "Please enter your full name.", name); return; }
+    btn.disabled = true; btn.textContent = "Sending...";
+    apiPost({ approverName: name, action: "request_changes", changeNotes: notes }).then(function(r){
+      if (!r.ok){ renderApprover(data, (r.body && r.body.error) || "Something went wrong. Please try again.", name); return; }
+      app.innerHTML = "<h1>Changes requested</h1><p>Thanks " + esc(r.body.approverName) + ", we've asked the doctor to update their hours.</p>";
+    }).catch(function(){ renderApprover(data, "We couldn't save this right now. Please try again shortly.", name); });
+  });
+}
+</script>
+</body>
+</html>
