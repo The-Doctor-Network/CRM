@@ -837,10 +837,10 @@ function credentialCategoryStatus(docs){
 
 var uiFilters = {
   doctors: { name:"", mobile:"", specialty:"", subSpecialty:"", location:"", email:"", position:"", recruiter:"", source:"", sortDir:"asc", page:1 },
-  hospitals: { name:"", contact:"", location:"", recruiter:"", type:"", specialty:"", page:1 },
+  hospitals: { name:"", contact:"", location:"", recruiter:"", type:"", specialty:"", subSpecialty:"", page:1 },
   jobs: { title:"", hospital:"", specialty:"", location:"", status:"all", recruiter:"" },
   placements: { doctor:"", hospital:"", status:"all" },
-  clients: { name:"", jobTitle:"", specialty:"", hospital:"", hospitalType:"", location:"", email:"", recruiter:"", sortDir:"asc", page:1 },
+  clients: { name:"", jobTitle:"", specialty:"", subSpecialty:"", hospital:"", hospitalType:"", location:"", email:"", recruiter:"", sortDir:"asc", page:1 },
   invoices: { invoiceNumber:"", type:"", candidate:"", hospital:"", status:"", sortDir:"desc", page:1 },
   selectedDoctors: {},
   selectedClients: {}
@@ -1348,6 +1348,7 @@ function hospitalToRow(h){
     contact_email: h.contactEmail||null,
     contact_phone: h.contactPhone||null, city: h.city||null, region: h.region||null, recruiter: h.recruiter||null,
     type: h.type||null, recruits_specialties: h.recruitsSpecialties||[],
+    recruits_sub_specialties: h.recruitsSubSpecialties||[],
     created_at: new Date(h.createdAt||Date.now()).toISOString()
   };
 }
@@ -1404,6 +1405,7 @@ function rowToHospital(r){
     contactEmail: r.contact_email||"",
     contactPhone: r.contact_phone||"", city: r.city||"", region: r.region||"", recruiter: r.recruiter||"",
     type: r.type||"", recruitsSpecialties: r.recruits_specialties||[],
+    recruitsSubSpecialties: r.recruits_sub_specialties||[],
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now()
   };
 }
@@ -1852,6 +1854,7 @@ function addHospital(data){
     contactEmail: data.contactEmail,
     contactPhone: data.contactPhone, city: data.city, region: data.region, recruiter: data.recruiter,
     type: data.type||"", recruitsSpecialties: data.recruitsSpecialties||[],
+    recruitsSubSpecialties: data.recruitsSubSpecialties||[],
     createdAt: Date.now()
   };
   state.hospitals.push(h);
@@ -1866,6 +1869,7 @@ function updateHospital(id, data){
   h.contactEmail=data.contactEmail;
   h.contactPhone=data.contactPhone; h.city=data.city; h.region=data.region; h.recruiter=data.recruiter;
   h.type=data.type||""; h.recruitsSpecialties=data.recruitsSpecialties||[];
+  h.recruitsSubSpecialties=data.recruitsSubSpecialties||[];
   sbUpdate("hospitals", id, hospitalToRow(h));
 }
 function addClient(data){
@@ -2854,6 +2858,7 @@ function quickViewHospitalHtml(id){
       '<div class="field-item"><label>Location</label><div class="val">'+escapeHtml(locationOf(h)||"-")+'</div></div>'+
       '<div class="field-item"><label>Recruiter</label><div class="val">'+escapeHtml(h.recruiter||"-")+'</div></div>'+
       '<div class="field-item full"><label>Recruits for</label><div class="val">'+escapeHtml((h.recruitsSpecialties||[]).join(", ")||"-")+'</div></div>'+
+      '<div class="field-item full"><label>Sub-specialty</label><div class="val">'+escapeHtml((h.recruitsSubSpecialties||[]).join(", ")||"-")+'</div></div>'+
     '</div>';
   html += quickViewNotesHtml("hospital", h.id);
   html += '</div>';
@@ -3448,7 +3453,8 @@ function renderHospitalsList(){
       (!f.location || loc.indexOf(f.location.toLowerCase())>=0) &&
       (!f.recruiter || (h.recruiter||"").toLowerCase().indexOf(f.recruiter.toLowerCase())>=0) &&
       (!f.type || h.type === f.type) &&
-      (!f.specialty || (h.recruitsSpecialties||[]).indexOf(f.specialty) >= 0);
+      (!f.specialty || (h.recruitsSpecialties||[]).indexOf(f.specialty) >= 0) &&
+      (!f.subSpecialty || (h.recruitsSubSpecialties||[]).indexOf(f.subSpecialty) >= 0);
   }).sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
 
   var html = '<div class="page-head"><div><h1>Hospitals</h1><div class="sub">'+filteredCountLabel(list.length, state.hospitals.length)+'</div></div>'+
@@ -3462,7 +3468,7 @@ function renderHospitalsList(){
   var pageList = list.slice(pageStart, pageStart + pageSize);
 
   html += '<div class="table-wrap"><table><thead>'+
-    '<tr><th class="checkcell"></th><th>Hospital</th><th>Type</th><th>Contact</th><th>Location</th><th>Email</th><th>Phone</th><th>Recruiter</th><th>Recruits for</th><th class="checkcell"></th></tr>'+
+    '<tr><th class="checkcell"></th><th>Hospital</th><th>Type</th><th>Contact</th><th>Location</th><th>Email</th><th>Phone</th><th>Recruiter</th><th>Recruits for</th><th>Sub-specialty</th><th class="checkcell"></th></tr>'+
     '<tr class="filter-row"><th></th><th></th>'+
       filterRowSelect("type", f.type, HOSPITAL_TYPE_OPTIONS)+
       filterRowInput("contact", f.contact)+
@@ -3470,11 +3476,12 @@ function renderHospitalsList(){
       '<th></th><th></th>'+
       filterRowInput("recruiter", f.recruiter)+
       filterRowSelect("specialty", f.specialty, SPECIALTY_OPTIONS)+
+      filterRowSelect("subSpecialty", f.subSpecialty, ALL_SUBSPECIALTY_OPTIONS)+
       '<th></th>'+
     '</tr>'+
   '</thead><tbody>';
   if (pageList.length === 0){
-    html += '<tr><td colspan="10"><div class="empty" style="border:none;background:none;">No matches.</div></td></tr>';
+    html += '<tr><td colspan="11"><div class="empty" style="border:none;background:none;">No matches.</div></td></tr>';
   } else {
   pageList.forEach(function(h){
     html += '<tr data-action="open-hospital" data-id="'+h.id+'">'+
@@ -3487,6 +3494,7 @@ function renderHospitalsList(){
       '<td>'+escapeHtml(h.contactPhone||"-")+'</td>'+
       '<td>'+escapeHtml(h.recruiter||"-")+'</td>'+
       '<td>'+escapeHtml((h.recruitsSpecialties||[]).join(", ")||"-")+'</td>'+
+      '<td>'+escapeHtml((h.recruitsSubSpecialties||[]).join(", ")||"-")+'</td>'+
       '<td class="checkcell"><button type="button" class="btn-icon btn-icon-danger" data-action="open-delete-hospital" data-id="'+h.id+'" title="Delete" aria-label="Delete '+escapeHtml(h.name)+'">&#128465;</button></td>'+
     '</tr>';
   });
@@ -3603,6 +3611,7 @@ function renderHospitalDetail(id, tab){
       '<div class="field-item"><label>Phone</label><div class="val">'+escapeHtml(h.contactPhone||"-")+'</div></div>'+
       '<div class="field-item"><label>Recruiter</label><div class="val">'+escapeHtml(h.recruiter||"-")+'</div></div>'+
       '<div class="field-item full"><label>Recruits for</label><div class="val">'+escapeHtml((h.recruitsSpecialties||[]).join(", ")||"-")+'</div></div>'+
+      '<div class="field-item full"><label>Sub-specialty</label><div class="val">'+escapeHtml((h.recruitsSubSpecialties||[]).join(", ")||"-")+'</div></div>'+
     '</div></div></div>';
   }
   return html;
@@ -3628,6 +3637,7 @@ function renderClientsList(){
     return (!f.name || (c.name||"").toLowerCase().indexOf(f.name.toLowerCase())>=0) &&
       (!f.jobTitle || (c.jobTitle||"").toLowerCase().indexOf(f.jobTitle.toLowerCase())>=0) &&
       (!f.specialty || (c.specialty||"").toLowerCase().indexOf(f.specialty.toLowerCase())>=0) &&
+      (!f.subSpecialty || (c.subSpecialty||"").toLowerCase().indexOf(f.subSpecialty.toLowerCase())>=0) &&
       (!f.hospital || hospName.indexOf(f.hospital.toLowerCase())>=0) &&
       (!f.hospitalType || (hosp && hosp.type === f.hospitalType)) &&
       (!f.location || loc.indexOf(f.location.toLowerCase())>=0) &&
@@ -3658,7 +3668,7 @@ function renderClientsList(){
       '<th class="checkcell"><input type="checkbox" id="clients-select-all" /></th>'+
       '<th class="checkcell"></th>'+
       '<th class="sortable '+(f.sortDir==="desc"?"desc":"")+'" data-action="sort-clients">Name<span class="car"></span></th>'+
-      '<th>Job title</th><th>Hospital</th><th>Type</th><th>Specialty</th><th>Location</th><th>Email</th><th>Recruiter</th><th class="checkcell"></th>'+
+      '<th>Job title</th><th>Hospital</th><th>Type</th><th>Specialty</th><th>Sub-specialty</th><th>Location</th><th>Email</th><th>Recruiter</th><th class="checkcell"></th>'+
     '</tr>'+
     '<tr class="filter-row">'+
       '<th></th><th></th>'+
@@ -3667,6 +3677,7 @@ function renderClientsList(){
       filterRowInput("hospital", f.hospital)+
       filterRowSelect("hospitalType", f.hospitalType, HOSPITAL_TYPE_OPTIONS)+
       filterRowSelect("specialty", f.specialty, SPECIALTY_OPTIONS)+
+      filterRowSelect("subSpecialty", f.subSpecialty, ALL_SUBSPECIALTY_OPTIONS)+
       filterRowInput("location", f.location)+
       filterRowInput("email", f.email)+
       filterRowInput("recruiter", f.recruiter)+
@@ -3682,7 +3693,7 @@ function renderClientsList(){
   var pageList = list.slice(pageStart, pageStart + pageSize);
 
   if (pageList.length === 0){
-    html += '<tr><td colspan="11"><div class="empty" style="border:none;background:none;">No matches.</div></td></tr>';
+    html += '<tr><td colspan="12"><div class="empty" style="border:none;background:none;">No matches.</div></td></tr>';
   } else {
     pageList.forEach(function(c){
       var hosp = findHospital(c.hospitalId);
@@ -3695,6 +3706,7 @@ function renderClientsList(){
         '<td>'+(hosp ? '<a href="#/hospitals/'+hosp.id+'">'+escapeHtml(hosp.name)+'</a>' : '-')+'</td>'+
         '<td>'+escapeHtml((hosp && hosp.type) || "-")+'</td>'+
         '<td>'+escapeHtml(c.specialty||"-")+'</td>'+
+        '<td>'+escapeHtml(c.subSpecialty||"-")+'</td>'+
         '<td>'+escapeHtml(locationOf(c)||"-")+'</td>'+
         '<td>'+escapeHtml(c.email||"-")+'</td>'+
         '<td>'+escapeHtml(c.recruiter||"-")+'</td>'+
@@ -4895,6 +4907,12 @@ function addHospitalModalHtml(existing){
         return '<label class="checkbox-chip"><input type="checkbox" name="recruitsSpecialties" value="'+escapeHtml(s)+'" '+checked+' /> '+escapeHtml(s)+'</label>';
       }).join("")+
     '</div></div>'+
+    '<div class="form-row"><label>Sub-specialty of roles hired</label><div class="checkbox-grid">'+
+      ALL_SUBSPECIALTY_OPTIONS.map(function(s){
+        var checked = (h.recruitsSubSpecialties||[]).indexOf(s) >= 0 ? "checked" : "";
+        return '<label class="checkbox-chip"><input type="checkbox" name="recruitsSubSpecialties" value="'+escapeHtml(s)+'" '+checked+' /> '+escapeHtml(s)+'</label>';
+      }).join("")+
+    '</div></div>'+
     '<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Cancel</button><button type="submit" class="btn btn-primary">'+(existing?"Save changes":"Add hospital")+'</button></div>'+
   '</form>';
 }
@@ -5984,10 +6002,10 @@ document.addEventListener("submit", function(e){
     updateDoctor(form.getAttribute("data-id"), { firstName:fd.get("firstName"), lastName:fd.get("lastName"), mobile:fd.get("mobile"), phone:fd.get("phone"), email:fd.get("email"), city:fd.get("city"), region:fd.get("region"), position:fd.get("position"), recruiter:fd.get("recruiter"), source:fd.get("source"), dob:fd.get("dob"), specialty:fd.get("specialty"), subSpecialty:fd.get("subSpecialty"), skills:fd.get("skills"), businessName:fd.get("businessName"), abn:fd.get("abn"), gstRegistered:fd.get("gstRegistered")==="on", invoiceAddress:fd.get("invoiceAddress"), bankAccountName:fd.get("bankAccountName"), bankBsb:fd.get("bankBsb"), bankAccountNumber:fd.get("bankAccountNumber") });
     closeModal(); persist();
   } else if (action === "submit-add-hospital"){
-    var h = addHospital({ name:fd.get("name"), contactFirstName:fd.get("contactFirstName"), contactLastName:fd.get("contactLastName"), contactEmail:fd.get("contactEmail"), contactPhone:fd.get("contactPhone"), city:fd.get("city"), region:fd.get("region"), recruiter:fd.get("recruiter"), type:fd.get("type"), recruitsSpecialties:fd.getAll("recruitsSpecialties") });
+    var h = addHospital({ name:fd.get("name"), contactFirstName:fd.get("contactFirstName"), contactLastName:fd.get("contactLastName"), contactEmail:fd.get("contactEmail"), contactPhone:fd.get("contactPhone"), city:fd.get("city"), region:fd.get("region"), recruiter:fd.get("recruiter"), type:fd.get("type"), recruitsSpecialties:fd.getAll("recruitsSpecialties"), recruitsSubSpecialties:fd.getAll("recruitsSubSpecialties") });
     closeModal(); persist(); nav("#/hospitals/"+h.id+"/snapshot");
   } else if (action === "submit-edit-hospital"){
-    updateHospital(form.getAttribute("data-id"), { name:fd.get("name"), contactFirstName:fd.get("contactFirstName"), contactLastName:fd.get("contactLastName"), contactEmail:fd.get("contactEmail"), contactPhone:fd.get("contactPhone"), city:fd.get("city"), region:fd.get("region"), recruiter:fd.get("recruiter"), type:fd.get("type"), recruitsSpecialties:fd.getAll("recruitsSpecialties") });
+    updateHospital(form.getAttribute("data-id"), { name:fd.get("name"), contactFirstName:fd.get("contactFirstName"), contactLastName:fd.get("contactLastName"), contactEmail:fd.get("contactEmail"), contactPhone:fd.get("contactPhone"), city:fd.get("city"), region:fd.get("region"), recruiter:fd.get("recruiter"), type:fd.get("type"), recruitsSpecialties:fd.getAll("recruitsSpecialties"), recruitsSubSpecialties:fd.getAll("recruitsSubSpecialties") });
     closeModal(); persist();
   } else if (action === "submit-add-client"){
     var cl = addClient({ firstName:fd.get("firstName"), lastName:fd.get("lastName"), jobTitle:fd.get("jobTitle"), hospitalId:fd.get("hospitalId"), specialty:fd.get("specialty"), subSpecialty:fd.get("subSpecialty"), email:fd.get("email"), phone:fd.get("phone"), mobile:fd.get("mobile"), city:fd.get("city"), region:fd.get("region"), recruiter:fd.get("recruiter") });
