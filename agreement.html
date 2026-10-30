@@ -18,14 +18,18 @@
   html,body{margin:0;}
   body{background:var(--cream);color:var(--ink);font-family:Manrope,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;}
   .wrap{max-width:760px;margin:0 auto;padding:28px 16px 80px;}
-  h1,h2,h3,.wordmark{font-family:Fredoka,Manrope,sans-serif;font-weight:600;letter-spacing:-0.01em;}
+  h1,h2,h3{font-family:Fredoka,Manrope,sans-serif;font-weight:600;letter-spacing:-0.01em;}
 
   /* wordmark */
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:34px;}
-  .wordmark{font-size:23px;color:var(--ink);text-decoration:none;display:inline-block;line-height:1;}
-  .wordmark .o{color:var(--coral);}
-  .wordmark .oo{position:relative;display:inline-block;}
-  .wordmark .oo::after{content:"";position:absolute;left:.14em;right:.14em;bottom:-.2em;height:.3em;border-bottom:2.5px solid var(--coral);border-radius:0 0 50% 50% / 0 0 100% 100%;}
+  /* Same markup + styles as the logo on thedoctornetwork.com.au (assets/styles.css) */
+  .wordmark{font-family:'Fredoka',sans-serif;font-size:28px;font-weight:600;letter-spacing:-.04em;display:inline-flex;align-items:center;white-space:nowrap;line-height:1;color:var(--ink);text-decoration:none;}
+  .doctor-mid{position:relative;display:inline-flex;align-items:baseline}
+  .eye{color:var(--coral)}
+  .logo-smile{position:absolute;left:3px;right:3px;bottom:-15px;width:calc(100% - 6px);height:19px;overflow:visible;pointer-events:none}
+  .logo-smile path{fill:none;stroke:var(--coral);stroke-width:4;stroke-linecap:round;vector-effect:non-scaling-stroke}
+  @media (max-width:560px){ .wordmark{font-size:23px} .logo-smile{bottom:-12px} }
+  @media (max-width:380px){ .wordmark{font-size:21px} }
   .secure{font-size:12.5px;color:var(--ink-3);display:flex;align-items:center;gap:6px;white-space:nowrap;}
   .secure svg{flex:none;}
 
@@ -106,8 +110,9 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <a class="wordmark" href="https://thedoctornetwork.com.au" aria-label="The Doctor Network">
-      The D<span class="oo"><span class="o">o</span>ct<span class="o">o</span></span>r Network
+    <a class="wordmark" href="https://thedoctornetwork.com.au" aria-label="The Doctor Network home">
+      <span>The D</span><span class="doctor-mid"><span class="eye">o</span><span>c</span><span>t</span><span class="eye">o</span>
+      <svg class="logo-smile" viewBox="0 0 100 34" aria-hidden="true"><path d="M5 7 Q50 32 95 7"/></svg></span><span>r Network</span>
     </a>
     <div class="secure"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Private signing link</div>
   </div>
