@@ -678,7 +678,7 @@ var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var state = {
   doctors: [], hospitals: [], clients: [], jobs: [], placements: [], notes: [],
   documents: [], tasks: [], timesheets: [], invoices: [], emailTemplates: [], sentEmails: [], crmUsers: [], jobInterests: [],
-  campaigns: [], campaignRecipients: [],
+  campaigns: [], campaignRecipients: [], candidateAgreements: [],
   ui: { lastHash: "" },
   meta: { seq: 1, invoiceSeq: 1000 },
   settings: { agency: {
@@ -783,6 +783,11 @@ var CREDENTIALING_SECTIONS = [
     { key: "professional_indemnity", label: "Professional indemnity or medical defence membership" },
     { key: "medicare_restrictions", label: "Medicare or professional restrictions" },
     { key: "regulatory_investigations", label: "Regulatory investigations or conditions" }
+  ]},
+  { section: "Candidate agreement", items: [
+    // Ticked automatically when a candidate e-signs via "Send T&Cs" (the signed PDF is filed
+    // here by the agreement-portal edge function); paper-signed copies can be added by hand too.
+    { key: "candidate_agreement", label: "Signed T&Cs, consent & signature authorisation" }
   ]}
 ];
 var CREDENTIALING_CATEGORY_LIST = [];
@@ -815,7 +820,8 @@ var CREDENTIAL_FILENAME_HINTS = {
   mandatory_training: ["mandatorytraining","training","module"],
   professional_indemnity: ["indemnity","insurance","mdo","medicaldefence"],
   medicare_restrictions: ["medicarerestriction","section19","s19ab"],
-  regulatory_investigations: ["investigation","complaint","ahpracondition"]
+  regulatory_investigations: ["investigation","complaint","ahpracondition"],
+  candidate_agreement: ["candidateagreement","termsandconditions","tandc","consentanddisclosure","signatureauthorisation"]
 };
 function guessCredentialCategory(filename){
   var norm = String(filename||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
@@ -1454,6 +1460,121 @@ function rowToDocument(r){
 // Job radar: rows created by the job-radar-portal edge function when a doctor clicks "I'm
 // interested" on their personal link - read-only from the CRM's point of view (see job/doctor
 // detail panels below), the edge function is what writes these.
+/* ---------- Candidate T&Cs e-signing ----------
+   Rows in candidate_agreements are written only by the send-candidate-agreement and
+   agreement-portal edge functions (the browser can read them, not edit them), so a signed
+   record's audit details can't be changed from the CRM. One live (unsigned) link per doctor:
+   "Resend" re-sends the same link; once signed, "Send again" starts a new one. */
+var AGREEMENT_PORTAL_BASE = "https://the-doctor-network.github.io/CRM/agreement.html";
+function rowToAgreement(r){
+  function t(v){ return v ? new Date(v).getTime() : null; }
+  return {
+    id: r.id, doctorId: r.doctor_id, token: r.token, version: r.tc_version||"", status: r.status||"sent",
+    sentTo: r.sent_to_email||"", sentBy: r.sent_by||"", sentAt: t(r.sent_at), lastSentAt: t(r.last_sent_at), sendCount: r.send_count||1,
+    openedAt: t(r.opened_at), openCount: r.open_count||0, signedAt: t(r.signed_at), signedIp: r.signed_ip||"",
+    signedUserAgent: r.signed_user_agent||"", typedName: r.typed_name||"", documentId: r.document_id||"",
+    copyEmailedAt: t(r.copy_emailed_at)
+  };
+}
+function latestAgreementFor(doctorId){
+  var list = state.candidateAgreements.filter(function(a){ return a.doctorId === doctorId; });
+  list.sort(function(a,b){ return (b.sentAt||0) - (a.sentAt||0); });
+  return list[0] || null;
+}
+function agreementStatusBadge(a){
+  if (!a) return badgeHtml("Not sent", "neutral");
+  if (a.status === "signed") return badgeHtml("Signed", "green");
+  if (a.status === "opened") return badgeHtml("Opened", "amberlight");
+  return badgeHtml("Sent", "teal");
+}
+// Short browser/device summary from a user-agent string, for the profile panel (the full string
+// is kept in the database and on the signed PDF's signing certificate).
+function shortUserAgent(ua){
+  if (!ua) return "";
+  var device = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : /Macintosh/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : "";
+  var browser = /Edg\//.test(ua) ? "Edge" : /CriOS|Chrome\//.test(ua) ? "Chrome" : /FxiOS|Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "";
+  return [browser, device].filter(Boolean).join(" on ") || ua.slice(0, 60);
+}
+function sendTcsButtonHtml(d){
+  var a = latestAgreementFor(d.id);
+  var label = !a ? "Send T&Cs" : (a.status === "signed" ? "Send T&Cs again" : "Resend T&Cs");
+  var disabledAttr = canEmailDoctor(d) ? "" : ("disabled title=\""+escapeHtml(d.emailBlocked?emailBlockedNote(d):"No email on file.")+"\"");
+  return '<button class="btn" type="button" data-action="send-tcs" data-id="'+d.id+'" '+disabledAttr+'>'+escapeHtml(label)+'</button>';
+}
+var agreementRefreshAt = {};
+function agreementPanelHtml(d){
+  var a = latestAgreementFor(d.id);
+  // Unsigned link out there? Quietly re-check (at most once a minute per doctor) so a signature
+  // made since the CRM loaded shows up just by opening the profile.
+  if (a && a.status !== "signed" && (Date.now() - (agreementRefreshAt[d.id]||0)) > 60000){
+    agreementRefreshAt[d.id] = Date.now();
+    var before = a.status;
+    setTimeout(function(){
+      refreshDoctorAgreementData(d.id).then(function(){
+        var now = latestAgreementFor(d.id), r = currentRoute();
+        if (now && now.status !== before && r[0] === "doctors" && r[1] === d.id) render();
+      }).catch(function(){});
+    }, 0);
+  }
+  var html = '<div class="panel" style="margin-top:16px;"><h2>Candidate T&amp;Cs '+agreementStatusBadge(a)+
+    (a ? '<button type="button" class="btn-icon" data-action="refresh-tcs" data-id="'+d.id+'" title="Refresh status" aria-label="Refresh T&amp;Cs status">&#8635;</button>' : '')+
+    '</h2>';
+  if (!a){
+    html += '<div class="note-box" style="margin-bottom:12px;">Not sent yet. "Send T&amp;Cs" emails '+escapeHtml(d.name)+' a private link to read and e-sign the Candidate T&amp;Cs, Consent &amp; Disclosure Form and Signature Authorisation Form - no login needed.</div>';
+    html += '<div>'+sendTcsButtonHtml(d)+'</div></div>';
+    return html;
+  }
+  function when(ts){ return ts ? fmtDateTime(ts) : "-"; }
+  html += '<div class="field-grid">'+
+    '<div class="field-item"><label>Sent</label><div class="val">'+when(a.sentAt)+(a.sendCount>1?' <span style="color:var(--ink-400);">(sent '+a.sendCount+'x, last '+when(a.lastSentAt)+')</span>':'')+'</div></div>'+
+    '<div class="field-item"><label>Sent to</label><div class="val">'+escapeHtml(a.sentTo||"-")+'</div></div>'+
+    '<div class="field-item"><label>Opened</label><div class="val">'+(a.openedAt ? when(a.openedAt)+(a.openCount>1?' <span style="color:var(--ink-400);">('+a.openCount+' views)</span>':'') : "Not yet")+'</div></div>'+
+    '<div class="field-item"><label>Signed</label><div class="val">'+(a.signedAt ? when(a.signedAt) : "Not yet")+'</div></div>';
+  if (a.status === "signed"){
+    html += '<div class="field-item"><label>Name typed</label><div class="val">'+escapeHtml(a.typedName||"-")+'</div></div>'+
+      '<div class="field-item"><label>T&amp;Cs version</label><div class="val">'+escapeHtml(a.version||"-")+'</div></div>'+
+      '<div class="field-item"><label>IP address</label><div class="val mono">'+escapeHtml(a.signedIp||"-")+'</div></div>'+
+      '<div class="field-item"><label>Browser</label><div class="val" title="'+escapeHtml(a.signedUserAgent)+'">'+escapeHtml(shortUserAgent(a.signedUserAgent)||"-")+'</div></div>'+
+      '<div class="field-item full"><label>Candidate\'s copy</label><div class="val">'+(a.copyEmailedAt ? "Emailed "+when(a.copyEmailedAt) : "Not emailed yet")+'</div></div>';
+  } else {
+    html += '<div class="field-item"><label>T&amp;Cs version</label><div class="val">'+escapeHtml(a.version||"-")+'</div></div>';
+  }
+  html += '</div>';
+  var signedDoc = a.documentId ? state.documents.filter(function(x){ return x.id === a.documentId; })[0] : null;
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
+    (signedDoc ? '<button class="btn btn-sm btn-primary" type="button" data-action="download-document" data-id="'+signedDoc.id+'">Download signed PDF</button>' : '')+
+    (a.status !== "signed" ? '<button class="btn btn-sm" type="button" data-action="copy-tcs-link" data-id="'+d.id+'">Copy signing link</button>' : '')+
+    sendTcsButtonHtml(d).replace('class="btn"', 'class="btn btn-sm"')+
+  '</div></div>';
+  return html;
+}
+// Calls one of our edge functions and normalises errors the same way sendViaResend does.
+function invokeEdgeFunction(name, body){
+  return sb.functions.invoke(name, { body: body }).then(function(res){
+    if (res.error){
+      var ctx = res.error && res.error.context;
+      var bodyPromise = (ctx && typeof ctx.json === "function") ? ctx.json().catch(function(){ return null; }) : Promise.resolve(null);
+      return bodyPromise.then(function(errBody){ return { ok:false, error: (errBody && errBody.error) || res.error.message || "Something went wrong." }; });
+    }
+    if (res.data && res.data.error) return { ok:false, error: res.data.error };
+    return { ok:true, data: res.data };
+  }).catch(function(){ return { ok:false, error:"Network error - could not reach the server." }; });
+}
+// Re-reads this doctor's agreements, documents and notes (the signing page writes these
+// server-side, so the CRM won't see a signature until it asks again).
+function refreshDoctorAgreementData(doctorId){
+  return Promise.all([
+    sb.from("candidate_agreements").select("*").eq("doctor_id", doctorId),
+    sb.from("documents").select("*").eq("linked_type", "doctor").eq("linked_id", doctorId),
+    sb.from("notes").select("*").eq("linked_type", "doctor").eq("linked_id", doctorId)
+  ]).then(function(rs){
+    if (rs[0].error || rs[1].error || rs[2].error) throw (rs[0].error || rs[1].error || rs[2].error);
+    state.candidateAgreements = state.candidateAgreements.filter(function(a){ return a.doctorId !== doctorId; }).concat((rs[0].data||[]).map(rowToAgreement));
+    state.documents = state.documents.filter(function(x){ return !(x.linkedType === "doctor" && x.linkedId === doctorId); }).concat((rs[1].data||[]).map(rowToDocument));
+    state.notes = state.notes.filter(function(n){ return !(n.linkedType === "doctor" && n.linkedId === doctorId); }).concat((rs[2].data||[]).map(rowToNote));
+  });
+}
+
 function rowToJobInterest(r){
   return {
     id: r.id, jobId: r.job_id, doctorId: r.doctor_id,
@@ -1695,7 +1816,7 @@ function initAuth(){
       state.doctors = []; state.hospitals = []; state.clients = []; state.notes = []; state.tasks = [];
       state.jobs = []; state.placements = []; state.timesheets = []; state.invoices = []; state.emailTemplates = [];
       state.sentEmails = []; state.mySettings = { displayName:"", sendFromEmail:"", signatureHtml:"" }; state.jobInterests = []; state.documents = [];
-      state.campaigns = []; state.campaignRecipients = [];
+      state.campaigns = []; state.campaignRecipients = []; state.candidateAgreements = [];
       invalidateRecruitersCache();
       render();
     } else {
@@ -1746,7 +1867,8 @@ function loadInitialData(){
     sbFetchAll("documents"),
     sbFetchAll("job_interests"),
     sbFetchAll("campaigns"),
-    sbFetchAll("campaign_recipients")
+    sbFetchAll("campaign_recipients"),
+    sbFetchAll("candidate_agreements")
   ]).then(function(results){
     state.doctors = (results[0]||[]).map(rowToDoctor);
     state.hospitals = (results[1]||[]).map(rowToHospital);
@@ -1773,6 +1895,7 @@ function loadInitialData(){
     state.jobInterests = (results[14]||[]).map(rowToJobInterest);
     state.campaigns = (results[15]||[]).map(rowToCampaign);
     state.campaignRecipients = (results[16]||[]).map(rowToCampaignRecipient);
+    state.candidateAgreements = (results[17]||[]).map(rowToAgreement);
     maybeCreateStorageCheckTask();
     sweepDocumentExpiries();
     sweepDoctorBirthdays();
@@ -3122,6 +3245,7 @@ function renderDoctorDetail(id, tab){
     '</div></div>'+
     '<div class="action-row">'+
       '<button class="btn btn-primary" type="button" data-action="open-compose" data-linked="doctor" data-id="'+d.id+'" '+(canEmailDoctor(d)?"":("disabled title=\""+escapeHtml(d.emailBlocked?emailBlockedNote(d):"No email on file.")+"\""))+'>Email</button>'+
+      sendTcsButtonHtml(d)+
       '<button class="btn" type="button" data-action="open-edit-doctor" data-id="'+d.id+'">Edit</button>'+
       '<button class="btn btn-danger" type="button" data-action="open-delete-doctor" data-id="'+d.id+'">Delete</button>'+
     '</div>'+
@@ -3170,6 +3294,7 @@ function renderDoctorSnapshotTab(d){
     '<div class="field-item"><label>BSB</label><div class="val">'+escapeHtml(d.bankBsb||"-")+'</div></div>'+
     '<div class="field-item"><label>Account number</label><div class="val">'+escapeHtml(d.bankAccountNumber||"-")+'</div></div>'+
   '</div></div>';
+  html += agreementPanelHtml(d);
   html += jobRadarPanelHtml(d);
   html += doctorCampaignsPanelHtml(d);
   html += '</div>';
@@ -5519,6 +5644,31 @@ document.addEventListener("click", function(e){
     if (navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(linkCopy).then(function(){ toast("Link copied."); }, function(){ toast(linkCopy); });
     } else { toast(linkCopy); }
+  }
+  else if (action === "send-tcs"){
+    var tcsDoc = findDoctor(actEl.getAttribute("data-id")); if (!tcsDoc) return;
+    if (!canEmailDoctor(tcsDoc)){ toast("No email on file for this doctor."); return; }
+    var tcsBtns = document.querySelectorAll('[data-action="send-tcs"][data-id="'+tcsDoc.id+'"]');
+    Array.prototype.forEach.call(tcsBtns, function(b){ b.disabled = true; b.textContent = "Sending..."; });
+    invokeEdgeFunction("send-candidate-agreement", { doctorId: tcsDoc.id }).then(function(r){
+      if (!r.ok){ toast(r.error); render(); return; }
+      return refreshDoctorAgreementData(tcsDoc.id).catch(function(){}).then(function(){
+        render();
+        toast((r.data && r.data.reminder ? "Reminder sent" : "T&Cs sent") + " to " + tcsDoc.email + ".");
+      });
+    });
+  }
+  else if (action === "refresh-tcs"){
+    var rDocId = actEl.getAttribute("data-id");
+    refreshDoctorAgreementData(rDocId).then(function(){ render(); toast("Status refreshed."); }, function(){ toast("Could not refresh - check your connection."); });
+  }
+  else if (action === "copy-tcs-link"){
+    var tcsA = latestAgreementFor(actEl.getAttribute("data-id"));
+    if (!tcsA || !tcsA.token){ toast("No link available yet."); return; }
+    var tcsLink = AGREEMENT_PORTAL_BASE + "?token=" + tcsA.token;
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(tcsLink).then(function(){ toast("Signing link copied."); }, function(){ toast(tcsLink); });
+    } else { toast(tcsLink); }
   }
   else if (action === "copy-job-radar-link"){
     var docCopy = findDoctor(actEl.getAttribute("data-id")); if (!docCopy) return;
