@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Candidate Agreement | The Doctor Network</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FAF9F6; --paper:#FFFFFF; --ink:#142328; --ink-2:#3B4A4F; --ink-3:#6B7478;
+    --coral:#F76747; --coral-soft:#FDE9E3; --green:#1F574C; --green-soft:#E3EEEB;
+    --rule:#E6E2DA; --error:#B23B21;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{background:var(--cream);color:var(--ink);font-family:Manrope,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 16px 80px;}
+  h1,h2,h3,.wordmark{font-family:Fredoka,Manrope,sans-serif;font-weight:600;letter-spacing:-0.01em;}
+
+  /* wordmark */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:34px;}
+  .wordmark{font-size:23px;color:var(--ink);text-decoration:none;display:inline-block;line-height:1;}
+  .wordmark .o{color:var(--coral);}
+  .wordmark .oo{position:relative;display:inline-block;}
+  .wordmark .oo::after{content:"";position:absolute;left:.14em;right:.14em;bottom:-.2em;height:.3em;border-bottom:2.5px solid var(--coral);border-radius:0 0 50% 50% / 0 0 100% 100%;}
+  .secure{font-size:12.5px;color:var(--ink-3);display:flex;align-items:center;gap:6px;white-space:nowrap;}
+  .secure svg{flex:none;}
+
+  /* hero */
+  .hero h1{font-size:clamp(28px,5vw,38px);line-height:1.15;margin:0 0 10px;}
+  .hero p{color:var(--ink-2);margin:0 0 6px;max-width:60ch;}
+  .steps{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0 30px;padding:0;list-style:none;}
+  .steps li{font-size:13px;font-weight:600;padding:7px 13px;border-radius:999px;background:var(--paper);border:1px solid var(--rule);color:var(--ink-3);display:flex;align-items:center;gap:7px;}
+  .steps li .n{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;background:var(--cream);border:1px solid var(--rule);}
+  .steps li.done{color:var(--green);border-color:#BFD6D0;background:var(--green-soft);}
+  .steps li.done .n{background:var(--green);border-color:var(--green);color:#fff;}
+
+  /* sections */
+  .card{background:var(--paper);border:1px solid var(--rule);border-radius:20px;padding:30px clamp(18px,4vw,36px);margin-bottom:22px;}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--coral);margin-bottom:4px;}
+  .card h2{font-size:clamp(23px,3.6vw,28px);margin:0 0 16px;line-height:1.2;}
+  .card h3{font-size:18px;color:var(--green);margin:26px 0 8px;}
+  .card p{margin:0 0 13px;color:var(--ink-2);}
+  .card ul,.card ol{margin:0 0 15px;padding-left:0;list-style:none;}
+  .card li{position:relative;padding-left:24px;margin-bottom:8px;color:var(--ink-2);}
+  .card ul li::before{content:"";position:absolute;left:5px;top:.72em;width:7px;height:7px;border-radius:50%;background:var(--coral);}
+  .card ol{counter-reset:o;}
+  .card ol li{counter-increment:o;}
+  .card ol li::before{content:counter(o) ".";position:absolute;left:0;top:0;font-weight:700;color:var(--green);}
+  .fill-name{font-weight:700;color:var(--ink);border-bottom:1.5px dashed var(--coral);padding:0 2px;}
+  .fill-name.empty{color:var(--ink-3);font-weight:500;}
+
+  .agree{display:flex;gap:14px;align-items:flex-start;margin-top:22px;padding:16px 18px;border-radius:14px;background:var(--cream);border:1.5px solid var(--rule);cursor:pointer;transition:border-color .15s, background .15s;}
+  .agree:hover{border-color:#D8D2C6;}
+  .agree.on{border-color:var(--green);background:var(--green-soft);}
+  .agree input{position:absolute;opacity:0;pointer-events:none;}
+  .box{flex:none;width:24px;height:24px;border-radius:7px;border:2px solid #BDB6A9;background:#fff;display:flex;align-items:center;justify-content:center;margin-top:1px;transition:all .15s;}
+  .agree.on .box{background:var(--green);border-color:var(--green);}
+  .box svg{opacity:0;transition:opacity .15s;}
+  .agree.on .box svg{opacity:1;}
+  .agree:focus-within{outline:3px solid rgba(247,103,71,.35);outline-offset:2px;}
+  .agree-text{font-weight:600;color:var(--ink);font-size:15px;line-height:1.5;}
+
+  /* signing */
+  .sign h2{margin-bottom:6px;}
+  .sign .lead{color:var(--ink-2);margin-bottom:22px;}
+  .grid{display:grid;grid-template-columns:1fr 200px;gap:16px;margin-bottom:18px;}
+  @media (max-width:560px){ .grid{grid-template-columns:1fr;} }
+  label.f{display:block;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+  input.t{width:100%;font:inherit;font-size:16px;padding:13px 15px;border-radius:12px;border:1.5px solid var(--rule);background:#fff;color:var(--ink);}
+  input.t:focus{outline:none;border-color:var(--coral);box-shadow:0 0 0 3px rgba(247,103,71,.18);}
+  input.t[readonly]{background:var(--cream);color:var(--ink-2);}
+  .pad-wrap{position:relative;border:1.5px dashed #C9C2B5;border-radius:14px;background:#fff;touch-action:none;}
+  .pad-wrap.has{border-style:solid;border-color:var(--green);}
+  canvas{display:block;width:100%;height:190px;border-radius:13px;cursor:crosshair;touch-action:none;}
+  .pad-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#B3AC9F;font-size:15px;pointer-events:none;}
+  .pad-line{position:absolute;left:24px;right:24px;bottom:42px;border-bottom:1px solid #E7E2D8;pointer-events:none;}
+  .pad-x{position:absolute;left:24px;bottom:46px;color:#C9C2B5;font-size:18px;pointer-events:none;font-family:Fredoka,sans-serif;}
+  .pad-tools{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:13px;color:var(--ink-3);}
+  .linkbtn{background:none;border:none;color:var(--green);font:inherit;font-weight:700;cursor:pointer;padding:4px 0;text-decoration:underline;text-underline-offset:3px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:var(--coral);color:#fff;border:none;border-radius:999px;font:inherit;font-weight:700;font-size:16px;padding:15px 28px;cursor:pointer;transition:transform .1s, background .15s, opacity .15s;min-height:52px;}
+  .btn:hover{background:#E9583A;}
+  .btn:active{transform:translateY(1px);}
+  .btn[disabled]{opacity:.45;cursor:not-allowed;}
+  .submit-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:24px;}
+  .todo{font-size:13.5px;color:var(--ink-3);}
+  .legal{font-size:13px;color:var(--ink-3);margin-top:22px;padding-top:16px;border-top:1px solid var(--rule);line-height:1.55;}
+  .msg{border-radius:12px;padding:12px 15px;font-size:14px;margin-top:16px;}
+  .msg.err{background:#FBE9E4;color:var(--error);}
+
+  /* states */
+  .state{text-align:center;padding:48px clamp(18px,4vw,40px);}
+  .state .icon{width:64px;height:64px;border-radius:50%;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;}
+  .state.ok .icon{background:var(--green-soft);}
+  .state.bad .icon{background:var(--coral-soft);}
+  .state h1{font-size:30px;margin:0 0 10px;}
+  .state p{color:var(--ink-2);max-width:48ch;margin:0 auto 10px;}
+  .loading{color:var(--ink-3);text-align:center;padding:80px 0;}
+  footer{margin-top:36px;font-size:12.5px;color:var(--ink-3);text-align:center;line-height:1.7;}
+  footer a{color:var(--ink-3);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="wordmark" href="https://thedoctornetwork.com.au" aria-label="The Doctor Network">
+      The D<span class="oo"><span class="o">o</span>ct<span class="o">o</span></span>r Network
+    </a>
+    <div class="secure"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Private signing link</div>
+  </div>
+  <div id="app"><div class="loading">Loading your agreement&hellip;</div></div>
+  <footer>The Doctor Network Aus Pty Ltd &middot; ABN 68 702 173 297<br><a href="mailto:hello@thedoctornetwork.com.au">hello@thedoctornetwork.com.au</a> &middot; <a href="https://thedoctornetwork.com.au/privacy.html">Privacy policy</a></footer>
+</div>
+
+<script>
+var API_BASE = "https://vgavcmazlmgflyqlmbns.supabase.co/functions/v1/agreement-portal";
+var token = new URLSearchParams(location.search).get("token") || "";
+var app = document.getElementById("app");
+var data = null;
+var agreed = { terms:false, consent:false, signature_auth:false };
+var pad = null;
+
+function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function fmtLong(d){ try { return d.toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" }); } catch(e){ return d.toISOString().slice(0,10); } }
+var CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+function stateHtml(kind, title, body){
+  var icon = kind === "ok"
+    ? '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1F574C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+    : '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F76747" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg>';
+  return '<div class="card state ' + kind + '"><div class="icon">' + icon + '</div><h1>' + esc(title) + '</h1>' + body + '</div>';
+}
+function showError(msg){
+  app.innerHTML = stateHtml("bad", "This link isn't working", "<p>" + esc(msg) + "</p><p>Email <a href=\"mailto:hello@thedoctornetwork.com.au\">hello@thedoctornetwork.com.au</a> and we'll send you a fresh one.</p>");
+}
+function showSigned(first, when, emailedTo, delayed){
+  var d = when ? fmtLong(new Date(when)) : "";
+  app.innerHTML = stateHtml("ok", "All signed" + (first ? ", " + first : "") + "!",
+    "<p>Thanks for signing The Doctor Network's candidate agreement" + (d ? " on " + esc(d) : "") + ".</p>" +
+    (delayed ? "<p>Your copy is on its way shortly.</p>" : (emailedTo ? "<p>We've emailed a signed copy to <strong>" + esc(emailedTo) + "</strong> for your records.</p>" : "<p>A signed copy has been emailed to you for your records.</p>")) +
+    "<p>You can close this page.</p>");
+  window.scrollTo(0,0);
+}
+
+function blocksHtml(blocks){
+  return blocks.map(function(b){
+    if (b.h) return "<h3>" + esc(b.h) + "</h3>";
+    if (b.p) return "<p>" + esc(b.p).replace("{name}", '<span class="fill-name empty" data-fill-name>your name</span>') + "</p>";
+    if (b.ul) return "<ul>" + b.ul.map(function(li){ return "<li>" + esc(li) + "</li>"; }).join("") + "</ul>";
+    if (b.ol) return "<ol>" + b.ol.map(function(li){ return "<li>" + esc(li) + "</li>"; }).join("") + "</ol>";
+    return "";
+  }).join("");
+}
+
+function render(){
+  var s = data.sections;
+  var stepNames = { terms:"Terms & Conditions", consent:"Consent & Disclosure", signature_auth:"Signature Authorisation" };
+  var html =
+    '<div class="hero"><h1>' + (data.firstName ? "Hi " + esc(data.firstName) + ", here's" : "Here's") + ' your candidate agreement</h1>' +
+    '<p>Before we can represent you, please read the three short documents below, tick &ldquo;I agree&rdquo; on each, then sign once at the bottom. It takes about five minutes.</p></div>' +
+    '<ol class="steps" id="steps">' + s.map(function(sec, i){ return '<li data-step="' + sec.key + '"><span class="n">' + (i+1) + '</span>' + esc(stepNames[sec.key] || sec.title) + '</li>'; }).join("") +
+      '<li data-step="sign"><span class="n">' + (s.length+1) + '</span>Sign</li></ol>';
+
+  s.forEach(function(sec){
+    html += '<section class="card" id="sec-' + sec.key + '">' +
+      '<div class="kicker">' + esc(sec.kicker) + '</div><h2>' + esc(sec.title) + '</h2>' +
+      blocksHtml(sec.blocks) +
+      '<label class="agree" data-agree="' + sec.key + '"><input type="checkbox"><span class="box">' + CHECK + '</span><span class="agree-text">' + esc(sec.agreeLabel) + '</span></label>' +
+    '</section>';
+  });
+
+  html += '<section class="card sign" id="sec-sign">' +
+    '<div class="kicker">Final step</div><h2>Sign your agreement</h2>' +
+    '<p class="lead">Your signature below is applied to all three documents above.</p>' +
+    '<div class="grid">' +
+      '<div><label class="f" for="fullName">Full name</label><input class="t" id="fullName" type="text" autocomplete="name" placeholder="e.g. Dr Jane Citizen" maxlength="120"></div>' +
+      '<div><label class="f" for="signDate">Date</label><input class="t" id="signDate" type="text" readonly value="' + esc(fmtLong(new Date())) + '"></div>' +
+    '</div>' +
+    '<label class="f">Signature</label>' +
+    '<div class="pad-wrap" id="padWrap"><canvas id="pad" aria-label="Signature pad - draw your signature with your finger, stylus or mouse"></canvas><div class="pad-line"></div><div class="pad-x">&times;</div><div class="pad-hint" id="padHint">Draw your signature here</div></div>' +
+    '<div class="pad-tools"><span>Use your finger, stylus or mouse</span><button class="linkbtn" type="button" id="clearPad">Clear</button></div>' +
+    '<div class="submit-row"><button class="btn" type="button" id="submitBtn" disabled>Sign and submit</button><span class="todo" id="todo"></span></div>' +
+    '<div id="formMsg"></div>' +
+    '<p class="legal">By selecting &ldquo;Sign and submit&rdquo; you agree that your typed name and drawn signature are your electronic signature on these documents, with the same effect as signing on paper. We record the date, time, IP address and browser used, and email you a signed copy.</p>' +
+  '</section>';
+
+  app.innerHTML = html;
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-agree]"), function(el){
+    var key = el.getAttribute("data-agree"); var cb = el.querySelector("input");
+    cb.addEventListener("change", function(){ agreed[key] = cb.checked; el.classList.toggle("on", cb.checked); update(); });
+  });
+  document.getElementById("fullName").addEventListener("input", update);
+  document.getElementById("clearPad").addEventListener("click", function(){ pad.clear(); update(); });
+  document.getElementById("submitBtn").addEventListener("click", submit);
+  pad = makePad(document.getElementById("pad"), function(){ update(); });
+  update();
+}
+
+function update(){
+  var name = (document.getElementById("fullName").value || "").trim();
+  Array.prototype.forEach.call(document.querySelectorAll("[data-fill-name]"), function(el){
+    el.textContent = name || "your name"; el.classList.toggle("empty", !name);
+  });
+  var hasSig = pad && !pad.isEmpty();
+  document.getElementById("padWrap").classList.toggle("has", !!hasSig);
+  document.getElementById("padHint").style.display = hasSig ? "none" : "";
+  ["terms","consent","signature_auth"].forEach(function(k){
+    var li = document.querySelector('[data-step="' + k + '"]'); if (li) li.classList.toggle("done", agreed[k]);
+  });
+  var signLi = document.querySelector('[data-step="sign"]');
+  if (signLi) signLi.classList.toggle("done", name.length >= 3 && !!hasSig);
+
+  var missing = [];
+  var labels = { terms:"Terms & Conditions", consent:"Consent & Disclosure", signature_auth:"Signature Authorisation" };
+  ["terms","consent","signature_auth"].forEach(function(k){ if (!agreed[k]) missing.push("tick “I agree” on " + labels[k]); });
+  if (name.length < 3) missing.push("type your full name");
+  if (!hasSig) missing.push("draw your signature");
+  document.getElementById("submitBtn").disabled = missing.length > 0;
+  document.getElementById("todo").textContent = missing.length ? "Still to do: " + missing.join(", ") + "." : "Ready to sign.";
+}
+
+function submit(){
+  var btn = document.getElementById("submitBtn");
+  var msg = document.getElementById("formMsg");
+  msg.innerHTML = "";
+  btn.disabled = true; btn.textContent = "Signing…";
+  fetch(API_BASE + "?token=" + encodeURIComponent(token), {
+    method:"POST", headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      typedName: document.getElementById("fullName").value.trim(),
+      agreedTerms: agreed.terms, agreedConsent: agreed.consent, agreedSignatureAuth: agreed.signature_auth,
+      signaturePng: pad.toPng()
+    })
+  }).then(function(r){ return r.json().then(function(b){ return { ok:r.ok, status:r.status, body:b }; }); })
+  .then(function(r){
+    if (r.ok){ showSigned(r.body.firstName, r.body.signedAt, r.body.emailedTo, r.body.copyDelayed); return; }
+    if (r.body && r.body.mode === "signed"){ showSigned(data.firstName, null, null, false); return; }
+    msg.innerHTML = '<div class="msg err">' + esc((r.body && r.body.error) || "Something went wrong. Please try again.") + '</div>';
+    btn.textContent = "Sign and submit"; update();
+  }).catch(function(){
+    msg.innerHTML = '<div class="msg err">We couldn’t reach our server. Check your connection and try again.</div>';
+    btn.textContent = "Sign and submit"; update();
+  });
+}
+
+/* Signature pad: smooth strokes, HiDPI-aware, exports a tightly cropped transparent PNG. */
+function makePad(canvas, onChange){
+  var ctx = canvas.getContext("2d");
+  var strokes = []; var current = null; var dpr = 1;
+  function resize(){
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * dpr); canvas.height = Math.round(rect.height * dpr);
+    redraw();
+  }
+  function pt(e){ var r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  function drawStroke(c, s, scale, ox, oy){
+    c.strokeStyle = "#142328"; c.lineWidth = 2.6 * scale; c.lineCap = "round"; c.lineJoin = "round";
+    c.beginPath();
+    var p = s[0]; c.moveTo((p.x - ox) * scale, (p.y - oy) * scale);
+    if (s.length === 1){ c.lineTo((p.x - ox) * scale + 0.1, (p.y - oy) * scale + 0.1); }
+    for (var i = 1; i < s.length - 1; i++){
+      var mx = (s[i].x + s[i+1].x) / 2, my = (s[i].y + s[i+1].y) / 2;
+      c.quadraticCurveTo((s[i].x - ox) * scale, (s[i].y - oy) * scale, (mx - ox) * scale, (my - oy) * scale);
+    }
+    if (s.length > 1){ var l = s[s.length-1]; c.lineTo((l.x - ox) * scale, (l.y - oy) * scale); }
+    c.stroke();
+  }
+  function redraw(){ ctx.clearRect(0,0,canvas.width,canvas.height); strokes.forEach(function(s){ drawStroke(ctx, s, dpr, 0, 0); }); if (current) drawStroke(ctx, current, dpr, 0, 0); }
+  canvas.addEventListener("pointerdown", function(e){ e.preventDefault(); canvas.setPointerCapture(e.pointerId); current = [pt(e)]; redraw(); });
+  canvas.addEventListener("pointermove", function(e){ if (!current) return; e.preventDefault(); current.push(pt(e)); redraw(); });
+  function end(){ if (!current) return; strokes.push(current); current = null; redraw(); onChange(); }
+  canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end); canvas.addEventListener("pointerleave", function(e){ if (e.pointerType === "mouse") end(); });
+  window.addEventListener("resize", function(){ var old = canvas.width; resize(); if (old && canvas.width !== old){ /* keep strokes in CSS px, nothing to rescale */ } });
+  resize();
+  return {
+    isEmpty: function(){ var n = 0; strokes.forEach(function(s){ n += s.length; }); return n < 8; },
+    clear: function(){ strokes = []; current = null; redraw(); },
+    toPng: function(){
+      var minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+      strokes.forEach(function(s){ s.forEach(function(p){ minX=Math.min(minX,p.x); minY=Math.min(minY,p.y); maxX=Math.max(maxX,p.x); maxY=Math.max(maxY,p.y); }); });
+      var padPx = 8; minX -= padPx; minY -= padPx; maxX += padPx; maxY += padPx;
+      var w = maxX - minX, h = maxY - minY;
+      var scale = Math.min(3, 900 / Math.max(w, 1));
+      var out = document.createElement("canvas");
+      out.width = Math.max(1, Math.round(w * scale)); out.height = Math.max(1, Math.round(h * scale));
+      var oc = out.getContext("2d");
+      strokes.forEach(function(s){ drawStroke(oc, s, scale, minX, minY); });
+      return out.toDataURL("image/png");
+    }
+  };
+}
+
+if (!token){
+  showError("This link is missing its signing code.");
+} else {
+  fetch(API_BASE + "?token=" + encodeURIComponent(token))
+    .then(function(r){ return r.json().then(function(b){ return { ok:r.ok, body:b }; }); })
+    .then(function(r){
+      if (!r.ok){ showError((r.body && r.body.error) || "This link is invalid."); return; }
+      data = r.body;
+      if (data.mode === "signed"){
+        app.innerHTML = stateHtml("ok", "Already signed", "<p>This agreement was signed" + (data.signedAt ? " on " + esc(fmtLong(new Date(data.signedAt))) : "") + (data.typedName ? " by " + esc(data.typedName) : "") + ". A copy was emailed at the time.</p><p>Need another copy? Email <a href=\"mailto:hello@thedoctornetwork.com.au\">hello@thedoctornetwork.com.au</a>.</p>");
+        return;
+      }
+      render();
+    })
+    .catch(function(){ showError("We couldn’t load your agreement. Please check your connection and try again."); });
+}
+</script>
+</body>
+</html>
