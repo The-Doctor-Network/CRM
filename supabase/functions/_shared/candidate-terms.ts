@@ -7,7 +7,7 @@
 // sent with on their candidate_agreements row; the page always shows the version currently
 // deployed here, so only ever change the text together with a version bump.
 
-export const TC_VERSION = "2026-10 v1";
+export const TC_VERSION = "2026-11 v1.1";
 
 export type Block =
   | { h: string }
@@ -109,7 +109,7 @@ export const SECTIONS: Section[] = [
         "I have full working rights in Australia and can provide evidence of citizenship or visa.",
         "I am not aware of any outstanding medical negligence claims against me.",
         "I will disclose all current employment commitments to TDN in my CV and inform a TDN representative in writing if there are any changes.",
-        "I must inform TDN if I am suspended or terminated from my usual duties at any other medical facility where I am employed.",
+        "I must immediately inform TDN, and for NSW Health placements the Public Health Organisation's nominated officer, if conditions are placed on my registration or if I am suspended or terminated from my usual duties at any other medical facility where I am employed.",
         "I will notify my employer of my intention to register with a medical locum agency.",
         "I will consider potential conflicts of interest and work health and safety risks, or risks to the quality of patient care.",
         "I have not been working, and am not working, as a lobbyist.",
@@ -131,8 +131,12 @@ export const SECTIONS: Section[] = [
       { ul: [
         "I will need to complete the online mandatory training for Locum Medical Officers in HETI Moodle or My Health Learning, and provide TDN with a certificate of completion.",
         "My role may involve the requirement to supervise Junior Medical Officers.",
+        "I may be required to work in smaller regional or rural facilities, where specialist-level skills or work with minimal supervision may be needed.",
+        "I will complete a statutory declaration of any convictions or pending charges since the date of my National Criminal Record Check.",
+        "If I have lived overseas since the age of 16, I will provide a police clearance from each country I have been a citizen or resident of, or a statutory declaration where one is not available.",
         "If I am a current NSW Health employee, I must provide documentary evidence of approval to undertake secondary employment.",
         "If I am a current or former NSW Health employee, a NSW Health internal service check will be conducted as part of the pre-placement checks.",
+        "I am familiar with, and will comply with, the NSW Health Code of Conduct when working in NSW Health.",
         "I am able to perform an assignment in accordance with accepted medical practice and the direction of a NSW Public Health Organisation Department Head/supervisor."
       ] },
       { h: "Agreement" },
