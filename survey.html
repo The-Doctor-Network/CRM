@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Client Service Survey | The Doctor Network</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FAF9F6; --paper:#FFFFFF; --ink:#142328; --ink-2:#3B4A4F; --ink-3:#6B7478;
+    --coral:#F76747; --coral-soft:#FDE9E3; --green:#1F574C; --green-soft:#E3EEEB;
+    --rule:#E6E2DA; --error:#B23B21;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{background:var(--cream);color:var(--ink);font-family:Manrope,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 16px 80px;}
+  h1,h2,h3{font-family:Fredoka,Manrope,sans-serif;font-weight:600;letter-spacing:-0.01em;}
+
+  /* wordmark */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:34px;}
+  /* Same markup + styles as the logo on thedoctornetwork.com.au (assets/styles.css) */
+  .wordmark{font-family:'Fredoka',sans-serif;font-size:28px;font-weight:600;letter-spacing:-.04em;display:inline-flex;align-items:center;white-space:nowrap;line-height:1;color:var(--ink);text-decoration:none;}
+  .doctor-mid{position:relative;display:inline-flex;align-items:baseline}
+  .eye{color:var(--coral)}
+  .logo-smile{position:absolute;left:3px;right:3px;bottom:-15px;width:calc(100% - 6px);height:19px;overflow:visible;pointer-events:none}
+  .logo-smile path{fill:none;stroke:var(--coral);stroke-width:4;stroke-linecap:round;vector-effect:non-scaling-stroke}
+  @media (max-width:560px){ .wordmark{font-size:23px} .logo-smile{bottom:-12px} }
+  @media (max-width:380px){ .wordmark{font-size:21px} }
+  .secure{font-size:12.5px;color:var(--ink-3);display:flex;align-items:center;gap:6px;white-space:nowrap;}
+  .secure svg{flex:none;}
+
+  /* hero */
+  .hero h1{font-size:clamp(28px,5vw,38px);line-height:1.15;margin:0 0 10px;}
+  .hero p{color:var(--ink-2);margin:0 0 6px;max-width:60ch;}
+  .steps{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0 30px;padding:0;list-style:none;}
+  .steps li{font-size:13px;font-weight:600;padding:7px 13px;border-radius:999px;background:var(--paper);border:1px solid var(--rule);color:var(--ink-3);display:flex;align-items:center;gap:7px;}
+  .steps li .n{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;background:var(--cream);border:1px solid var(--rule);}
+  .steps li.done{color:var(--green);border-color:#BFD6D0;background:var(--green-soft);}
+  .steps li.done .n{background:var(--green);border-color:var(--green);color:#fff;}
+
+  /* sections */
+  .card{background:var(--paper);border:1px solid var(--rule);border-radius:20px;padding:30px clamp(18px,4vw,36px);margin-bottom:22px;}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--coral);margin-bottom:4px;}
+  .card h2{font-size:clamp(23px,3.6vw,28px);margin:0 0 16px;line-height:1.2;}
+  .card h3{font-size:18px;color:var(--green);margin:26px 0 8px;}
+  .card p{margin:0 0 13px;color:var(--ink-2);}
+  .card ul,.card ol{margin:0 0 15px;padding-left:0;list-style:none;}
+  .card li{position:relative;padding-left:24px;margin-bottom:8px;color:var(--ink-2);}
+  .card ul li::before{content:"";position:absolute;left:5px;top:.72em;width:7px;height:7px;border-radius:50%;background:var(--coral);}
+  .card ol{counter-reset:o;}
+  .card ol li{counter-increment:o;}
+  .card ol li::before{content:counter(o) ".";position:absolute;left:0;top:0;font-weight:700;color:var(--green);}
+  .fill-name{font-weight:700;color:var(--ink);border-bottom:1.5px dashed var(--coral);padding:0 2px;}
+  .fill-name.empty{color:var(--ink-3);font-weight:500;}
+
+  .agree{display:flex;gap:14px;align-items:flex-start;margin-top:22px;padding:16px 18px;border-radius:14px;background:var(--cream);border:1.5px solid var(--rule);cursor:pointer;transition:border-color .15s, background .15s;}
+  .agree:hover{border-color:#D8D2C6;}
+  .agree.on{border-color:var(--green);background:var(--green-soft);}
+  .agree input{position:absolute;opacity:0;pointer-events:none;}
+  .box{flex:none;width:24px;height:24px;border-radius:7px;border:2px solid #BDB6A9;background:#fff;display:flex;align-items:center;justify-content:center;margin-top:1px;transition:all .15s;}
+  .agree.on .box{background:var(--green);border-color:var(--green);}
+  .box svg{opacity:0;transition:opacity .15s;}
+  .agree.on .box svg{opacity:1;}
+  .agree:focus-within{outline:3px solid rgba(247,103,71,.35);outline-offset:2px;}
+  .agree-text{font-weight:600;color:var(--ink);font-size:15px;line-height:1.5;}
+
+  /* signing */
+  .sign h2{margin-bottom:6px;}
+  .sign .lead{color:var(--ink-2);margin-bottom:22px;}
+  .grid{display:grid;grid-template-columns:1fr 200px;gap:16px;margin-bottom:18px;}
+  @media (max-width:560px){ .grid{grid-template-columns:1fr;} }
+  label.f{display:block;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+  input.t{width:100%;font:inherit;font-size:16px;padding:13px 15px;border-radius:12px;border:1.5px solid var(--rule);background:#fff;color:var(--ink);}
+  input.t:focus{outline:none;border-color:var(--coral);box-shadow:0 0 0 3px rgba(247,103,71,.18);}
+  input.t[readonly]{background:var(--cream);color:var(--ink-2);}
+  .pad-wrap{position:relative;border:1.5px dashed #C9C2B5;border-radius:14px;background:#fff;touch-action:none;}
+  .pad-wrap.has{border-style:solid;border-color:var(--green);}
+  canvas{display:block;width:100%;height:190px;border-radius:13px;cursor:crosshair;touch-action:none;}
+  .pad-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#B3AC9F;font-size:15px;pointer-events:none;}
+  .pad-line{position:absolute;left:24px;right:24px;bottom:42px;border-bottom:1px solid #E7E2D8;pointer-events:none;}
+  .pad-x{position:absolute;left:24px;bottom:46px;color:#C9C2B5;font-size:18px;pointer-events:none;font-family:Fredoka,sans-serif;}
+  .pad-tools{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:13px;color:var(--ink-3);}
+  .linkbtn{background:none;border:none;color:var(--green);font:inherit;font-weight:700;cursor:pointer;padding:4px 0;text-decoration:underline;text-underline-offset:3px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:var(--coral);color:#fff;border:none;border-radius:999px;font:inherit;font-weight:700;font-size:16px;padding:15px 28px;cursor:pointer;transition:transform .1s, background .15s, opacity .15s;min-height:52px;}
+  .btn:hover{background:#E9583A;}
+  .btn:active{transform:translateY(1px);}
+  .btn[disabled]{opacity:.45;cursor:not-allowed;}
+  .submit-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:24px;}
+  .todo{font-size:13.5px;color:var(--ink-3);}
+  .legal{font-size:13px;color:var(--ink-3);margin-top:22px;padding-top:16px;border-top:1px solid var(--rule);line-height:1.55;}
+  .msg{border-radius:12px;padding:12px 15px;font-size:14px;margin-top:16px;}
+  .msg.err{background:#FBE9E4;color:var(--error);}
+
+  /* states */
+  .state{text-align:center;padding:48px clamp(18px,4vw,40px);}
+  .state .icon{width:64px;height:64px;border-radius:50%;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;}
+  .state.ok .icon{background:var(--green-soft);}
+  .state.bad .icon{background:var(--coral-soft);}
+  .state h1{font-size:30px;margin:0 0 10px;}
+  .state p{color:var(--ink-2);max-width:48ch;margin:0 auto 10px;}
+  .loading{color:var(--ink-3);text-align:center;padding:80px 0;}
+  footer{margin-top:36px;font-size:12.5px;color:var(--ink-3);text-align:center;line-height:1.7;}
+  footer a{color:var(--ink-3);}
+
+  /* survey */
+  .q{padding:18px 0;border-top:1px solid var(--rule);}
+  .q:first-of-type{border-top:none;padding-top:4px;}
+  .q-text{font-weight:600;color:var(--ink);margin:0 0 10px;}
+  .q-text .num{color:var(--coral);margin-right:6px;}
+  .q.missing .q-text{color:var(--error);}
+  .scale{display:flex;flex-wrap:wrap;gap:8px;}
+  .scale label{position:relative;cursor:pointer;}
+  .scale input{position:absolute;opacity:0;pointer-events:none;}
+  .scale span{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:64px;padding:8px 10px;border-radius:12px;border:1.5px solid var(--rule);background:#fff;font-size:12px;color:var(--ink-3);line-height:1.25;transition:all .12s;}
+  .scale span b{font-family:Fredoka,Manrope,sans-serif;font-size:18px;color:var(--ink);font-weight:600;}
+  .scale label:hover span{border-color:#D8D2C6;}
+  .scale input:checked + span{border-color:var(--green);background:var(--green-soft);color:var(--green);}
+  .scale input:checked + span b{color:var(--green);}
+  .scale input:focus-visible + span{outline:3px solid rgba(247,103,71,.35);outline-offset:2px;}
+  .scale .na span{min-width:56px;}
+  @media (max-width:560px){ .scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;} .scale.yn{grid-template-columns:1fr 1fr;} .scale label.na{grid-column:1 / -1;} .scale span{min-width:0;width:100%;padding:8px 2px;font-size:10.5px;overflow-wrap:anywhere;text-align:center;} }
+  textarea.t{width:100%;font:inherit;font-size:16px;padding:13px 15px;border-radius:12px;border:1.5px solid var(--rule);background:#fff;color:var(--ink);min-height:96px;resize:vertical;}
+  textarea.t:focus{outline:none;border-color:var(--coral);box-shadow:0 0 0 3px rgba(247,103,71,.18);}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:560px){ .fgrid{grid-template-columns:1fr;} }
+  .field{margin-bottom:16px;}
+  .yn{display:flex;gap:10px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="wordmark" href="https://thedoctornetwork.com.au" aria-label="The Doctor Network home">
+      <span>The D</span><span class="doctor-mid"><span class="eye">o</span><span>c</span><span>t</span><span class="eye">o</span>
+      <svg class="logo-smile" viewBox="0 0 100 34" aria-hidden="true"><path d="M5 7 Q50 32 95 7"/></svg></span><span>r Network</span>
+    </a>
+    <div class="secure"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Private survey link</div>
+  </div>
+  <div id="app"><div class="loading">Loading the survey&hellip;</div></div>
+  <footer>The Doctor Network Aus Pty Ltd &middot; ABN 68 702 173 297<br><a href="mailto:hello@thedoctornetwork.com.au">hello@thedoctornetwork.com.au</a> &middot; <a href="https://thedoctornetwork.com.au/privacy.html">Privacy policy</a></footer>
+</div>
+
+<script>
+var API_BASE = "https://vgavcmazlmgflyqlmbns.supabase.co/functions/v1/survey-portal";
+var token = new URLSearchParams(location.search).get("token") || "";
+var app = document.getElementById("app");
+var data = null;
+
+function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function stateHtml(kind, title, body){
+  var icon = kind === "ok"
+    ? '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1F574C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+    : '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F76747" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg>';
+  return '<div class="card state ' + kind + '"><div class="icon">' + icon + '</div><h1>' + esc(title) + '</h1>' + body + '</div>';
+}
+function thanks(first){
+  app.innerHTML = stateHtml("ok", "Thank you" + (first ? ", " + first : "") + "!",
+    '<p>Your feedback has been sent to The Doctor Network. Every response is read, and anything we can do better is followed up.</p><p>You can close this page.</p>');
+  window.scrollTo(0, 0);
+}
+
+function render(){
+  var d = data;
+  var html = '<div class="hero"><h1>How are we doing' + (d.firstName ? ', ' + esc(d.firstName) : '') + '?</h1>' +
+    '<p>We\'d really value your honest feedback on The Doctor Network\'s service' + (d.organisation ? ' to ' + esc(d.organisation) : '') + '. It\'s 10 quick ratings plus optional comments, and takes about 3 minutes.</p>' +
+    '<p>Choose <strong>N/A</strong> for anything that doesn\'t apply to you.</p></div>';
+
+  html += '<form id="f" novalidate><div class="card"><div class="kicker">Part 1</div><h2>Our service</h2>';
+  d.questions.forEach(function(q, i){
+    html += '<div class="q" id="wrap-' + q.id + '"><p class="q-text" id="lbl-' + q.id + '"><span class="num">' + (i + 1) + '.</span>' + esc(q.text) + '</p>' +
+      '<div class="scale" role="radiogroup" aria-labelledby="lbl-' + q.id + '">';
+    [1,2,3,4,5].forEach(function(n){
+      html += '<label><input type="radio" name="' + q.id + '" value="' + n + '"><span><b>' + n + '</b>' + esc(d.ratingLabels[n]) + '</span></label>';
+    });
+    html += '<label class="na"><input type="radio" name="' + q.id + '" value="na"><span><b>&ndash;</b>N/A</span></label></div></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="card"><div class="kicker">Part 2</div><h2>Your comments <span style="font-size:15px;color:var(--ink-3);font-weight:500;">(optional)</span></h2>';
+  d.comments.forEach(function(c){
+    html += '<div class="field"><label class="f" for="c-' + c.id + '">' + esc(c.text) + '</label><textarea class="t" id="c-' + c.id + '" maxlength="3000"></textarea></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="card"><div class="kicker">Part 3</div><h2>About you <span style="font-size:15px;color:var(--ink-3);font-weight:500;">(optional)</span></h2>' +
+    '<div class="fgrid">' +
+      '<div class="field"><label class="f" for="rn">Your name</label><input class="t" id="rn" maxlength="120" value="' + esc(d.clientName) + '"></div>' +
+      '<div class="field"><label class="f" for="rr">Your role</label><input class="t" id="rr" maxlength="120" value="' + esc(d.jobTitle) + '"></div>' +
+      '<div class="field"><label class="f" for="org">Organisation / Local Health District</label><input class="t" id="org" maxlength="160" value="' + esc(d.organisation) + '"></div>' +
+      '<div class="field"><label class="f" for="pc">Period you\'re rating</label><input class="t" id="pc" maxlength="80" placeholder="e.g. last 12 months"></div>' +
+    '</div>' +
+    '<div class="field"><label class="f">May we contact you to discuss your answers?</label><div class="scale yn">' +
+      '<label><input type="radio" name="mc" value="yes"><span><b>Yes</b></span></label>' +
+      '<label><input type="radio" name="mc" value="no"><span><b>No</b></span></label></div></div>' +
+    '<div class="submit-row"><button class="btn" type="submit" id="go">Send my feedback</button><span class="todo" id="todo"></span></div>' +
+    '<div id="err"></div>' +
+    '<p class="legal">Your answers go only to The Doctor Network and are used to improve our service. Concerns about a specific doctor are handled under our complaints procedure. See our <a href="https://thedoctornetwork.com.au/privacy.html">privacy policy</a>.</p>' +
+  '</div></form>';
+
+  app.innerHTML = html;
+  var f = document.getElementById("f");
+  f.addEventListener("change", updateTodo);
+  f.addEventListener("submit", submit);
+  updateTodo();
+}
+
+function answers(){
+  var out = {}, missing = [];
+  data.questions.forEach(function(q){
+    var el = document.querySelector('input[name="' + q.id + '"]:checked');
+    if (!el) missing.push(q.id); else out[q.id] = el.value === "na" ? null : Number(el.value);
+  });
+  return { ratings: out, missing: missing };
+}
+function updateTodo(){
+  var a = answers(), n = a.missing.length;
+  document.getElementById("todo").textContent = n ? (n + " question" + (n === 1 ? "" : "s") + " still to rate") : "All rated - ready to send";
+  data.questions.forEach(function(q){
+    var w = document.getElementById("wrap-" + q.id);
+    if (w && a.missing.indexOf(q.id) < 0) w.classList.remove("missing");
+  });
+}
+
+function submit(e){
+  e.preventDefault();
+  var a = answers(), err = document.getElementById("err");
+  err.innerHTML = "";
+  if (a.missing.length){
+    a.missing.forEach(function(id){ document.getElementById("wrap-" + id).classList.add("missing"); });
+    err.innerHTML = '<div class="msg err">Please choose a rating (or N/A) for every question in Part 1.</div>';
+    document.getElementById("wrap-" + a.missing[0]).scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  var comments = {};
+  data.comments.forEach(function(c){ comments[c.id] = document.getElementById("c-" + c.id).value; });
+  var mc = document.querySelector('input[name="mc"]:checked');
+  var payload = {
+    ratings: a.ratings, comments: comments,
+    respondentName: document.getElementById("rn").value, respondentRole: document.getElementById("rr").value,
+    organisation: document.getElementById("org").value, periodCovered: document.getElementById("pc").value,
+    mayContact: mc ? mc.value === "yes" : null
+  };
+  var btn = document.getElementById("go");
+  btn.disabled = true; btn.textContent = "Sending...";
+  fetch(API_BASE + "?token=" + encodeURIComponent(token), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+    .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+    .then(function(res){
+      if (res.ok && res.j.ok) return thanks(res.j.firstName || data.firstName);
+      if (res.j && res.j.mode === "completed") return thanks(data.firstName);
+      btn.disabled = false; btn.textContent = "Send my feedback";
+      err.innerHTML = '<div class="msg err">' + esc((res.j && res.j.error) || "Something went wrong. Please try again.") + '</div>';
+    })
+    .catch(function(){
+      btn.disabled = false; btn.textContent = "Send my feedback";
+      err.innerHTML = '<div class="msg err">We couldn\'t reach the server. Check your connection and try again.</div>';
+    });
+}
+
+if (!token){
+  app.innerHTML = stateHtml("bad", "This link isn't complete", '<p>Please use the full link from your email, or ask The Doctor Network to resend it.</p>');
+} else {
+  fetch(API_BASE + "?token=" + encodeURIComponent(token))
+    .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+    .then(function(res){
+      if (!res.ok){ app.innerHTML = stateHtml("bad", "We couldn't open this survey", '<p>' + esc(res.j.error || "Please ask The Doctor Network to resend it.") + '</p>'); return; }
+      if (res.j.mode === "completed"){ app.innerHTML = stateHtml("ok", "Already completed - thank you!", '<p>We\'ve received your feedback. If you\'d like to add anything, just email <a href="mailto:hello@thedoctornetwork.com.au">hello@thedoctornetwork.com.au</a>.</p>'); return; }
+      data = res.j; render();
+    })
+    .catch(function(){ app.innerHTML = stateHtml("bad", "We couldn't load the survey", '<p>Check your connection and refresh the page.</p>'); });
+}
+</script>
+</body>
+</html>
