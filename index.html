@@ -678,7 +678,7 @@ var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var state = {
   doctors: [], hospitals: [], clients: [], jobs: [], placements: [], notes: [],
   documents: [], tasks: [], timesheets: [], invoices: [], emailTemplates: [], sentEmails: [], crmUsers: [], jobInterests: [],
-  campaigns: [], campaignRecipients: [], candidateAgreements: [],
+  campaigns: [], campaignRecipients: [], candidateAgreements: [], clientSurveys: [],
   ui: { lastHash: "" },
   meta: { seq: 1, invoiceSeq: 1000 },
   settings: { agency: {
@@ -1575,6 +1575,117 @@ function refreshDoctorAgreementData(doctorId){
   });
 }
 
+/* ---------- Client service survey ----------
+   Rows in client_surveys are written only by the send-client-survey and survey-portal edge
+   functions (the browser can read them, not edit them). One live (uncompleted) link per client:
+   "Resend" re-sends the same link; once completed, "Send again" starts a new one. Completed
+   responses also land as a note on the client (the audit's feedback log). */
+var SURVEY_PORTAL_BASE = "https://the-doctor-network.github.io/CRM/survey.html";
+var SURVEY_QUESTIONS = [
+  "How quickly did we respond to your requests for doctors (Orders)?",
+  "How well did the doctors we put forward match the role (skills, experience, dates and times)?",
+  "How complete and accurate was the credentialing information we provided with each doctor?",
+  "How clinically competent were the doctors we supplied?",
+  "How professional were our doctors (punctuality, communication, teamwork)?",
+  "How well did we keep you informed about the status of your requests?",
+  "How easy were we to reach, including after hours, weekends and public holidays?",
+  "How well did we handle any concerns or complaints you raised?",
+  "How accurate and timely were our invoices?",
+  "Overall, how satisfied are you with our service?"
+];
+var SURVEY_RATING_LABELS = { 1:"Very poor", 2:"Poor", 3:"Satisfactory", 4:"Good", 5:"Excellent" };
+var SURVEY_COMMENT_LABELS = { wellDone:"What did we do well?", improve:"What should we improve?", locumFeedback:"About a specific doctor" };
+function rowToSurvey(r){
+  function t(v){ return v ? new Date(v).getTime() : null; }
+  return {
+    id: r.id, clientId: r.client_id, token: r.token, version: r.survey_version||"", status: r.status||"sent",
+    sentTo: r.sent_to_email||"", sentBy: r.sent_by||"", sentAt: t(r.sent_at), lastSentAt: t(r.last_sent_at), sendCount: r.send_count||1,
+    openedAt: t(r.opened_at), openCount: r.open_count||0, completedAt: t(r.completed_at),
+    responses: r.responses||null, average: (r.average_score===null||r.average_score===undefined) ? null : Number(r.average_score),
+    lowScore: !!r.low_score, respondentName: r.respondent_name||"", respondentRole: r.respondent_role||"",
+    organisation: r.organisation||"", periodCovered: r.period_covered||"", mayContact: r.may_contact
+  };
+}
+function surveysForClient(clientId){
+  return state.clientSurveys.filter(function(x){ return x.clientId === clientId; }).sort(function(a,b){ return (b.sentAt||0) - (a.sentAt||0); });
+}
+function surveyStatusBadge(x){
+  if (!x) return badgeHtml("Not sent", "neutral");
+  if (x.status === "completed") return x.lowScore ? badgeHtml("Completed - follow up", "rust") : badgeHtml("Completed", "green");
+  if (x.status === "opened") return badgeHtml("Opened", "amberlight");
+  return badgeHtml("Sent", "teal");
+}
+function sendSurveyButtonHtml(c, small){
+  var x = surveysForClient(c.id)[0];
+  var label = !x ? "Send survey" : (x.status === "completed" ? "Send survey again" : "Resend survey");
+  var dis = c.email ? "" : 'disabled title="No email on file."';
+  return '<button class="btn'+(small?" btn-sm":"")+'" type="button" data-action="send-survey" data-id="'+c.id+'" '+dis+'>'+escapeHtml(label)+'</button>';
+}
+var surveyRefreshAt = {};
+function surveyPanelHtml(c){
+  var list = surveysForClient(c.id), x = list[0] || null;
+  if (x && x.status !== "completed" && (Date.now() - (surveyRefreshAt[c.id]||0)) > 60000){
+    surveyRefreshAt[c.id] = Date.now();
+    var before = x.status;
+    setTimeout(function(){
+      refreshClientSurveyData(c.id).then(function(){
+        var now = surveysForClient(c.id)[0], r = currentRoute();
+        if (now && now.status !== before && r[0] === "clients" && r[1] === c.id) render();
+      }).catch(function(){});
+    }, 0);
+  }
+  var html = '<div class="panel" style="margin-top:16px;"><h2>Service survey '+surveyStatusBadge(x)+
+    (x ? '<button type="button" class="btn-icon" data-action="refresh-survey" data-id="'+c.id+'" title="Refresh status" aria-label="Refresh survey status">&#8635;</button>' : '')+'</h2>';
+  if (!x){
+    html += '<div class="note-box" style="margin-bottom:12px;">Not sent yet. "Send survey" emails '+escapeHtml(c.name)+' a private link to our 3-minute client service survey (10 ratings plus comments) - no login needed. Responses are saved here and as a note. Send to every hospital/LHD contact supplied in the last 12 months each November.</div>';
+    return html + '<div>'+sendSurveyButtonHtml(c)+'</div></div>';
+  }
+  function when(ts){ return ts ? fmtDateTime(ts) : "-"; }
+  html += '<div class="field-grid">'+
+    '<div class="field-item"><label>Sent</label><div class="val">'+when(x.sentAt)+(x.sendCount>1?' <span style="color:var(--ink-400);">(sent '+x.sendCount+'x, last '+when(x.lastSentAt)+')</span>':'')+'</div></div>'+
+    '<div class="field-item"><label>Sent to</label><div class="val">'+escapeHtml(x.sentTo||"-")+'</div></div>'+
+    '<div class="field-item"><label>Opened</label><div class="val">'+(x.openedAt ? when(x.openedAt) : "Not yet")+'</div></div>'+
+    '<div class="field-item"><label>Completed</label><div class="val">'+(x.completedAt ? when(x.completedAt) : "Not yet")+'</div></div>';
+  if (x.status === "completed"){
+    html += '<div class="field-item"><label>Average score</label><div class="val"><strong>'+(x.average===null?"n/a":x.average.toFixed(2)+" / 5")+'</strong></div></div>'+
+      '<div class="field-item"><label>Completed by</label><div class="val">'+escapeHtml([x.respondentName, x.respondentRole].filter(Boolean).join(", ")||"-")+'</div></div>';
+  }
+  html += '</div>';
+  if (x.status === "completed" && x.responses && x.responses.ratings){
+    if (x.lowScore) html += '<div class="note-box" style="margin-top:12px;border-color:var(--rust-600);">This response needs follow-up: log a corrective action and contact the client within 5 business days (Manual 16.12).</div>';
+    html += '<table style="width:100%;margin-top:12px;font-size:13px;border-collapse:collapse;">';
+    SURVEY_QUESTIONS.forEach(function(q, i){
+      var v = x.responses.ratings["q"+(i+1)];
+      var cell = (v===null||v===undefined) ? "N/A" : v+" - "+SURVEY_RATING_LABELS[v];
+      html += '<tr style="border-top:1px solid var(--slate-100);"><td style="padding:6px 8px 6px 0;">'+(i+1)+'. '+escapeHtml(q)+'</td><td style="padding:6px 0;white-space:nowrap;font-weight:600;'+((typeof v==="number"&&v<=2)?"color:var(--rust-600);":"")+'">'+escapeHtml(cell)+'</td></tr>';
+    });
+    html += '</table>';
+    var cm = x.responses.comments || {};
+    Object.keys(SURVEY_COMMENT_LABELS).forEach(function(k){
+      if (cm[k]) html += '<div style="margin-top:10px;"><label style="font-size:12px;font-weight:700;">'+escapeHtml(SURVEY_COMMENT_LABELS[k])+'</label><div style="white-space:pre-wrap;">'+escapeHtml(cm[k])+'</div></div>';
+    });
+  }
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
+    (x.status !== "completed" ? '<button class="btn btn-sm" type="button" data-action="copy-survey-link" data-id="'+c.id+'">Copy survey link</button>' : '')+
+    sendSurveyButtonHtml(c, true)+'</div>';
+  if (list.length > 1){
+    html += '<div style="margin-top:12px;font-size:12px;color:var(--ink-400);">Earlier surveys: '+list.slice(1).map(function(o){
+      return fmtDateTime(o.sentAt)+' ('+(o.status==="completed" ? (o.average===null?"completed":o.average.toFixed(2)+"/5") : o.status)+')';
+    }).join(" &middot; ")+'</div>';
+  }
+  return html + '</div>';
+}
+function refreshClientSurveyData(clientId){
+  return Promise.all([
+    sb.from("client_surveys").select("*").eq("client_id", clientId),
+    sb.from("notes").select("*").eq("linked_type", "client").eq("linked_id", clientId)
+  ]).then(function(rs){
+    if (rs[0].error || rs[1].error) throw (rs[0].error || rs[1].error);
+    state.clientSurveys = state.clientSurveys.filter(function(x){ return x.clientId !== clientId; }).concat((rs[0].data||[]).map(rowToSurvey));
+    state.notes = state.notes.filter(function(n){ return !(n.linkedType === "client" && n.linkedId === clientId); }).concat((rs[1].data||[]).map(rowToNote));
+  });
+}
+
 function rowToJobInterest(r){
   return {
     id: r.id, jobId: r.job_id, doctorId: r.doctor_id,
@@ -1816,7 +1927,7 @@ function initAuth(){
       state.doctors = []; state.hospitals = []; state.clients = []; state.notes = []; state.tasks = [];
       state.jobs = []; state.placements = []; state.timesheets = []; state.invoices = []; state.emailTemplates = [];
       state.sentEmails = []; state.mySettings = { displayName:"", sendFromEmail:"", signatureHtml:"" }; state.jobInterests = []; state.documents = [];
-      state.campaigns = []; state.campaignRecipients = []; state.candidateAgreements = [];
+      state.campaigns = []; state.campaignRecipients = []; state.candidateAgreements = []; state.clientSurveys = [];
       invalidateRecruitersCache();
       render();
     } else {
@@ -1868,7 +1979,8 @@ function loadInitialData(){
     sbFetchAll("job_interests"),
     sbFetchAll("campaigns"),
     sbFetchAll("campaign_recipients"),
-    sbFetchAll("candidate_agreements")
+    sbFetchAll("candidate_agreements"),
+    sbFetchAll("client_surveys")
   ]).then(function(results){
     state.doctors = (results[0]||[]).map(rowToDoctor);
     state.hospitals = (results[1]||[]).map(rowToHospital);
@@ -1896,7 +2008,9 @@ function loadInitialData(){
     state.campaigns = (results[15]||[]).map(rowToCampaign);
     state.campaignRecipients = (results[16]||[]).map(rowToCampaignRecipient);
     state.candidateAgreements = (results[17]||[]).map(rowToAgreement);
+    state.clientSurveys = (results[18]||[]).map(rowToSurvey);
     maybeCreateStorageCheckTask();
+    maybeCreateAnnualSurveyTask();
     sweepDocumentExpiries();
     sweepDoctorBirthdays();
     dataLoaded = true;
@@ -2788,6 +2902,20 @@ function maybeCreateStorageCheckTask(){
   var t = {
     id: uid("task"), title: "Check Supabase storage usage - you've uploaded " + threshold + "+ documents",
     dueDate: todayISO(), done: false, linkedType: "system", linkedId: checkId, createdAt: Date.now()
+  };
+  state.tasks.unshift(t);
+  sbInsert("tasks", taskToRow(t));
+}
+// Annual client service survey (NSW Health Audit Guide 2.7.3 / Manual 16.12): one system task
+// per year, due 30 November, created automatically the first time the CRM loads that year.
+function maybeCreateAnnualSurveyTask(){
+  var year = new Date().getFullYear();
+  var key = "annual_client_survey_" + year;
+  if (state.tasks.some(function(t){ return t.linkedType === "system" && t.linkedId === key; })) return;
+  var t = {
+    id: uid("task"),
+    title: "Annual client service survey " + year + ": send the survey (client profile > Service survey > Send survey) to every hospital/LHD contact supplied in the last 12 months, then review results at the next management review (NSW Health Audit Guide 2.7.3, Manual 16.12)",
+    dueDate: year + "-11-30", done: false, linkedType: "system", linkedId: key, createdAt: Date.now()
   };
   state.tasks.unshift(t);
   sbInsert("tasks", taskToRow(t));
@@ -3910,6 +4038,7 @@ function renderClientSnapshotTab(c, hosp){
     '<div class="field-item full"><label>Sub-specialty</label><div class="val">'+escapeHtml(c.subSpecialty||"-")+'</div></div>'+
   '</div></div>';
   html += '</div>';
+  html += surveyPanelHtml(c);
   return html;
 }
 
@@ -5657,6 +5786,31 @@ document.addEventListener("click", function(e){
         toast((r.data && r.data.reminder ? "Reminder sent" : "T&Cs sent") + " to " + tcsDoc.email + ".");
       });
     });
+  }
+  else if (action === "send-survey"){
+    var svCl = findClient(actEl.getAttribute("data-id")); if (!svCl) return;
+    if (!svCl.email){ toast("No email on file for this client."); return; }
+    var svBtns = document.querySelectorAll('[data-action="send-survey"][data-id="'+svCl.id+'"]');
+    Array.prototype.forEach.call(svBtns, function(b){ b.disabled = true; b.textContent = "Sending..."; });
+    invokeEdgeFunction("send-client-survey", { clientId: svCl.id }).then(function(r){
+      if (!r.ok){ toast(r.error); render(); return; }
+      return refreshClientSurveyData(svCl.id).catch(function(){}).then(function(){
+        render();
+        toast((r.data && r.data.reminder ? "Survey reminder sent" : "Survey sent") + " to " + svCl.email + ".");
+      });
+    });
+  }
+  else if (action === "refresh-survey"){
+    var rsId = actEl.getAttribute("data-id");
+    refreshClientSurveyData(rsId).then(function(){ render(); toast("Status refreshed."); }, function(){ toast("Could not refresh - check your connection."); });
+  }
+  else if (action === "copy-survey-link"){
+    var svX = surveysForClient(actEl.getAttribute("data-id"))[0];
+    if (!svX || !svX.token){ toast("No link available yet."); return; }
+    var svLink = SURVEY_PORTAL_BASE + "?token=" + svX.token;
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(svLink).then(function(){ toast("Survey link copied."); }, function(){ toast(svLink); });
+    } else { toast(svLink); }
   }
   else if (action === "refresh-tcs"){
     var rDocId = actEl.getAttribute("data-id");
