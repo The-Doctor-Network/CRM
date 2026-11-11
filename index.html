@@ -2491,10 +2491,18 @@ function findInvoice(id){ for (var i=0;i<state.invoices.length;i++){ if (state.i
 function invoicesForPlacement(placementId){
   return state.invoices.filter(function(i){ return i.placementId===placementId; }).sort(function(a,b){ return b.createdAt - a.createdAt; });
 }
+// TDN's own (agency) invoices: TDN-0001, TDN-0002 ... - same series as Xero (prefix "TDN-").
+// Doctor invoices (a doctor billing TDN) keep DOC-1000+. The next number is worked out from the
+// invoices already saved, so it survives page reloads and never reuses a number.
 function nextInvoiceNumber(type){
-  var n = state.meta.invoiceSeq;
-  state.meta.invoiceSeq = n + 1;
-  return (type==="agency" ? "AGY-" : "DOC-") + n;
+  var prefix = type === "agency" ? "TDN" : "DOC";
+  var max = 0;
+  state.invoices.forEach(function(i){
+    var m = /^([A-Z]+)-(\d+)$/.exec(i.invoiceNumber || "");
+    if (m && m[1] === prefix) max = Math.max(max, parseInt(m[2], 10));
+  });
+  if (prefix === "TDN") return "TDN-" + String(max + 1).padStart(4, "0");
+  return "DOC-" + Math.max(max + 1, 1000);
 }
 function doctorFromSnapshot(doc){
   return {
