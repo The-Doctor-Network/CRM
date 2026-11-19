@@ -231,6 +231,37 @@ input,select,textarea{font-family:inherit; font-size:inherit;}
 .qv-note-text{font-size:12.5px; line-height:1.5;}
 .qv-note-meta{font-size:11px; color:var(--ink-400); margin-top:4px;}
 .qv-note-more{font-size:11.5px; color:var(--ink-400); margin-top:8px;}
+.qv-folders label, .qv-tasks label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-400); margin-bottom:8px;}
+.qv-folders{border-top:1px solid var(--line); padding-top:14px;}
+.qv-tasks .task-row{padding:6px 0;}
+.qv-followup-toggle{display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:500; margin-top:8px; cursor:pointer;}
+.qv-followup-toggle input{width:auto; margin:0;}
+.qv-notes label.qv-followup-toggle{text-transform:none; letter-spacing:0; color:var(--ink-600); font-size:12.5px; margin-bottom:0;}
+.qv-followup-row{display:flex; flex-direction:column; gap:6px; margin-top:6px;}
+.qv-followup-row[hidden]{display:none;}
+.qv-followup-row input[type=date]{font:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; max-width:180px;}
+.qv-quick-dates{display:flex; flex-wrap:wrap; gap:4px;}
+.folder-chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
+.folder-chip{display:inline-flex; align-items:center; gap:2px; padding:3px 4px 3px 10px; border-radius:999px; background:var(--teal-100); border:1px solid var(--teal-600); font-size:12px;}
+.folder-chip a{color:var(--teal-700); text-decoration:none; font-weight:600;}
+.folder-chip button{border:none; background:none; color:var(--teal-700); cursor:pointer; font-size:14px; line-height:1; padding:0 5px;}
+.folder-none{font-size:12.5px; color:var(--ink-400);}
+.add-to-folder-select{font:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper-50); max-width:100%;}
+.folder-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px;}
+.folder-card{display:flex; flex-direction:column; gap:6px; padding:16px 18px; border:1px solid var(--line); border-radius:14px; background:var(--paper-50); color:inherit; text-decoration:none;}
+.folder-card:hover{border-color:var(--teal-600);}
+.folder-card-name{font-weight:700; font-size:15px;}
+.folder-card-desc{font-size:12.5px; color:var(--ink-600);}
+.folder-card-stats{display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:12.5px; margin-top:4px;}
+.folder-toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:12px;}
+.folder-toolbar input{flex:1; min-width:200px; font:inherit; font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:8px;}
+.folder-toolbar label{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-600);}
+.folder-toolbar select{font:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--line); border-radius:8px;}
+.folder-last-note{font-size:11.5px; color:var(--ink-400); margin-top:3px; max-width:260px;}
+.folder-add-results{display:flex; flex-direction:column; gap:6px; max-height:340px; overflow-y:auto; margin-bottom:8px;}
+.folder-add-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--paper-50);}
+.folder-add-name{font-weight:600; font-size:13px;}
+.badge-in{font-size:11.5px; color:var(--teal-700); font-weight:600;}
 .qv-foot{
   margin-top:auto; display:flex; gap:8px; padding:16px 20px; border-top:1px solid var(--line);
 }
@@ -678,7 +709,7 @@ var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var state = {
   doctors: [], hospitals: [], clients: [], jobs: [], placements: [], notes: [],
   documents: [], tasks: [], timesheets: [], invoices: [], emailTemplates: [], sentEmails: [], crmUsers: [], jobInterests: [],
-  campaigns: [], campaignRecipients: [], candidateAgreements: [], clientSurveys: [],
+  campaigns: [], campaignRecipients: [], candidateAgreements: [], clientSurveys: [], folders: [], folderMembers: [],
   ui: { lastHash: "" },
   meta: { seq: 1, invoiceSeq: 1000 },
   settings: { agency: {
@@ -848,6 +879,7 @@ var uiFilters = {
   placements: { doctor:"", hospital:"", status:"all" },
   clients: { name:"", jobTitle:"", specialty:"", subSpecialty:"", hospital:"", hospitalType:"", location:"", email:"", recruiter:"", sortDir:"asc", page:1 },
   invoices: { invoiceNumber:"", type:"", candidate:"", hospital:"", status:"", sortDir:"desc", page:1 },
+  folder: { q:"", sort:"contact" },
   selectedDoctors: {},
   selectedClients: {}
 };
@@ -1927,7 +1959,7 @@ function initAuth(){
       state.doctors = []; state.hospitals = []; state.clients = []; state.notes = []; state.tasks = [];
       state.jobs = []; state.placements = []; state.timesheets = []; state.invoices = []; state.emailTemplates = [];
       state.sentEmails = []; state.mySettings = { displayName:"", sendFromEmail:"", signatureHtml:"" }; state.jobInterests = []; state.documents = [];
-      state.campaigns = []; state.campaignRecipients = []; state.candidateAgreements = []; state.clientSurveys = [];
+      state.campaigns = []; state.campaignRecipients = []; state.candidateAgreements = []; state.clientSurveys = []; state.folders = []; state.folderMembers = [];
       invalidateRecruitersCache();
       render();
     } else {
@@ -1980,7 +2012,9 @@ function loadInitialData(){
     sbFetchAll("campaigns"),
     sbFetchAll("campaign_recipients"),
     sbFetchAll("candidate_agreements"),
-    sbFetchAll("client_surveys")
+    sbFetchAll("client_surveys"),
+    sbFetchAll("folders"),
+    sbFetchAll("folder_members")
   ]).then(function(results){
     state.doctors = (results[0]||[]).map(rowToDoctor);
     state.hospitals = (results[1]||[]).map(rowToHospital);
@@ -2009,6 +2043,8 @@ function loadInitialData(){
     state.campaignRecipients = (results[16]||[]).map(rowToCampaignRecipient);
     state.candidateAgreements = (results[17]||[]).map(rowToAgreement);
     state.clientSurveys = (results[18]||[]).map(rowToSurvey);
+    state.folders = (results[19]||[]).map(rowToFolder);
+    state.folderMembers = (results[20]||[]).map(rowToFolderMember);
     maybeCreateStorageCheckTask();
     maybeCreateAnnualSurveyTask();
     sweepDocumentExpiries();
@@ -2195,6 +2231,7 @@ function removeLinkedRecords(linkedType, linkedId){
 }
 function deleteDoctor(id){
   state.doctors = state.doctors.filter(function(d){ return d.id !== id; });
+  state.folderMembers = state.folderMembers.filter(function(m){ return m.doctorId !== id; });
   state.placements = state.placements.filter(function(p){ return p.doctorId !== id; });
   state.timesheets = state.timesheets.filter(function(t){ return t.doctorId !== id; });
   state.invoices = state.invoices.filter(function(inv){ return inv.doctorId !== id; });
@@ -2252,6 +2289,7 @@ function confirmDeleteModalHtml(entityType, id, name, warning){
 function deleteDoctorsBulk(ids){
   var idSet = {}; ids.forEach(function(id){ idSet[id] = true; });
   state.doctors = state.doctors.filter(function(d){ return !idSet[d.id]; });
+  state.folderMembers = state.folderMembers.filter(function(m){ return !idSet[m.doctorId]; });
   state.placements = state.placements.filter(function(p){ return !idSet[p.doctorId]; });
   state.timesheets = state.timesheets.filter(function(t){ return !idSet[t.doctorId]; });
   state.invoices = state.invoices.filter(function(inv){ return !idSet[inv.doctorId]; });
@@ -2997,6 +3035,7 @@ function renderShell(bodyHtml, activeKey){
       '<div class="nav">'+
         navItem("#/home","Home", activeKey==="home")+
         navItem("#/doctors","Doctors", activeKey==="doctors")+
+        navItem("#/folders","Folders", activeKey==="folders")+
         navItem("#/hospitals","Hospitals", activeKey==="hospitals")+
         navItem("#/clients","Clients", activeKey==="clients")+
         navItem("#/campaigns","Campaigns", activeKey==="campaigns")+
@@ -3034,6 +3073,301 @@ function renderShell(bodyHtml, activeKey){
   (quickView ? quickViewPanelHtml(quickView.type, quickView.id) : "");
 }
 
+/* ---------- Folders (groups of doctors, e.g. "Active doctors", "RANZCP Congress 2026") ---------- */
+
+function rowToFolder(r){
+  return { id: r.id, name: r.name || "", description: r.description || "", createdBy: r.created_by || "",
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now() };
+}
+function folderToRow(f){
+  return { id: f.id, name: f.name, description: f.description || null, created_by: f.createdBy || null,
+    created_at: new Date(f.createdAt || Date.now()).toISOString() };
+}
+function rowToFolderMember(r){
+  return { id: r.id, folderId: r.folder_id, doctorId: r.doctor_id, addedBy: r.added_by || "",
+    addedAt: r.added_at ? new Date(r.added_at).getTime() : Date.now() };
+}
+function folderMemberToRow(m){
+  return { id: m.id, folder_id: m.folderId, doctor_id: m.doctorId, added_by: m.addedBy || null,
+    added_at: new Date(m.addedAt || Date.now()).toISOString() };
+}
+function findFolder(id){ for (var i=0;i<state.folders.length;i++){ if (state.folders[i].id===id) return state.folders[i]; } return null; }
+function foldersSorted(){
+  return state.folders.slice().sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
+}
+function folderDoctorIds(folderId){
+  return state.folderMembers.filter(function(m){ return m.folderId === folderId; }).map(function(m){ return m.doctorId; });
+}
+function folderCount(folderId){
+  return state.folderMembers.filter(function(m){ return m.folderId === folderId && findDoctor(m.doctorId); }).length;
+}
+function foldersForDoctor(doctorId){
+  var ids = {};
+  state.folderMembers.forEach(function(m){ if (m.doctorId === doctorId) ids[m.folderId] = true; });
+  return foldersSorted().filter(function(f){ return ids[f.id]; });
+}
+function createFolder(name, description){
+  var f = { id: uid("folder"), name: name, description: description || "", createdBy: getViewerName(), createdAt: Date.now() };
+  state.folders.push(f);
+  return sbInsert("folders", folderToRow(f)).then(function(){ return f; });
+}
+function updateFolder(id, patch){
+  var f = findFolder(id);
+  if (!f) return;
+  if (patch.name !== undefined) f.name = patch.name;
+  if (patch.description !== undefined) f.description = patch.description;
+  sbUpdate("folders", id, { name: f.name, description: f.description || null });
+}
+function deleteFolder(id){
+  state.folders = state.folders.filter(function(f){ return f.id !== id; });
+  state.folderMembers = state.folderMembers.filter(function(m){ return m.folderId !== id; });
+  sbDelete("folders", id); // folder_members rows go with it (on delete cascade)
+}
+// Adds doctors to a folder, skipping anyone already in it. Returns how many were added.
+function addDoctorsToFolder(folderId, doctorIds){
+  var already = {};
+  folderDoctorIds(folderId).forEach(function(id){ already[id] = true; });
+  var rows = [];
+  doctorIds.forEach(function(did){
+    if (already[did] || !findDoctor(did)) return;
+    already[did] = true;
+    var m = { id: uid("fm"), folderId: folderId, doctorId: did, addedBy: getViewerName(), addedAt: Date.now() };
+    state.folderMembers.push(m);
+    rows.push(folderMemberToRow(m));
+  });
+  if (rows.length){
+    sb.from("folder_members").insert(rows).then(function(res){ if (res.error) sbRowError("insert folder_members", res.error); });
+  }
+  return rows.length;
+}
+function removeDoctorFromFolder(folderId, doctorId){
+  var ids = state.folderMembers.filter(function(m){ return m.folderId === folderId && m.doctorId === doctorId; }).map(function(m){ return m.id; });
+  state.folderMembers = state.folderMembers.filter(function(m){ return !(m.folderId === folderId && m.doctorId === doctorId); });
+  sbDeleteMany("folder_members", ids);
+}
+
+// Latest note (any type) logged against a doctor - "last contact" for the check-in view.
+function lastContactFor(doctorId){
+  var best = null;
+  state.notes.forEach(function(n){
+    if (n.linkedType === "doctor" && n.linkedId === doctorId && (!best || n.createdAt > best.createdAt)) best = n;
+  });
+  return best;
+}
+function nextFollowUpFor(doctorId){
+  var best = null;
+  state.tasks.forEach(function(t){
+    if (!t.done && t.linkedType === "doctor" && t.linkedId === doctorId && (!best || t.dueDate < best.dueDate)) best = t;
+  });
+  return best;
+}
+function daysSinceISO(iso){
+  if (!iso) return null;
+  var p = iso.split("-"), t = todayISO().split("-");
+  var a = Date.UTC(+p[0], +p[1]-1, +p[2]), b = Date.UTC(+t[0], +t[1]-1, +t[2]);
+  return Math.round((b - a) / 86400000);
+}
+var CHECK_IN_DAYS = 14;
+
+// Folder chips + "Add to folder" picker, used in the quick view and on the doctor's snapshot.
+function doctorFoldersHtml(d){
+  var inFolders = foldersForDoctor(d.id);
+  var inIds = {}; inFolders.forEach(function(f){ inIds[f.id] = true; });
+  var html = '<div class="folder-chips">';
+  inFolders.forEach(function(f){
+    html += '<span class="folder-chip"><a href="#/folders/'+f.id+'" data-action="close-quick-view">'+escapeHtml(f.name)+'</a>'+
+      '<button type="button" data-action="remove-from-folder" data-folder="'+f.id+'" data-doctor="'+d.id+'" title="Remove from '+escapeHtml(f.name)+'" aria-label="Remove from '+escapeHtml(f.name)+'">&times;</button></span>';
+  });
+  if (!inFolders.length) html += '<span class="folder-none">Not in any folders yet.</span>';
+  html += '</div>';
+  var options = foldersSorted().filter(function(f){ return !inIds[f.id]; });
+  html += '<select class="add-to-folder-select" data-doctor="'+d.id+'" aria-label="Add to folder">'+
+    '<option value="">+ Add to folder...</option>'+
+    options.map(function(f){ return '<option value="'+f.id+'">'+escapeHtml(f.name)+'</option>'; }).join("")+
+    '<option value="__new">+ New folder...</option>'+
+  '</select>';
+  return html;
+}
+
+function renderFoldersList(){
+  var html = '<div class="page-head"><div><h1>Folders</h1><div class="sub">Group doctors so you can check in with them in one place</div></div>'+
+    '<button class="btn btn-primary" type="button" data-action="open-new-folder">+ New folder</button></div>';
+  var folders = foldersSorted();
+  if (!folders.length){
+    html += '<div class="empty"><h3>No folders yet</h3><p>Create a folder like "Active doctors", then add doctors from their profile, the quick view, or by ticking them on the Doctors list.</p>'+
+      '<button class="btn btn-primary" type="button" data-action="open-new-folder">Create a folder</button></div>';
+    return html;
+  }
+  html += '<div class="folder-grid">';
+  folders.forEach(function(f){
+    var ids = folderDoctorIds(f.id).filter(function(id){ return findDoctor(id); });
+    var due = 0, overdueTasks = 0, today = todayISO();
+    ids.forEach(function(id){
+      var lc = lastContactFor(id);
+      var ds = lc ? daysSinceISO(lc.date) : null;
+      if (ds === null || ds > CHECK_IN_DAYS) due++;
+      var nf = nextFollowUpFor(id);
+      if (nf && nf.dueDate <= today) overdueTasks++;
+    });
+    html += '<a class="folder-card" href="#/folders/'+f.id+'">'+
+      '<div class="folder-card-name">'+escapeHtml(f.name)+'</div>'+
+      (f.description ? '<div class="folder-card-desc">'+escapeHtml(f.description)+'</div>' : '')+
+      '<div class="folder-card-stats"><span><strong>'+ids.length+'</strong> doctor'+(ids.length===1?"":"s")+'</span>'+
+        (overdueTasks ? '<span class="due-chip over">'+overdueTasks+' follow-up'+(overdueTasks===1?"":"s")+' due</span>' : '')+
+        (due ? '<span class="due-chip">'+due+' not contacted in '+CHECK_IN_DAYS+'+ days</span>' : '')+
+      '</div>'+
+    '</a>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function renderFolderDetail(id){
+  var f = findFolder(id);
+  if (!f) return '<div class="empty"><h3>Folder not found</h3><p>It may have been deleted.</p><a class="btn" href="#/folders">Back to folders</a></div>';
+  var ff = uiFilters.folder;
+  var today = todayISO();
+  var rows = folderDoctorIds(f.id).map(findDoctor).filter(Boolean).map(function(d){
+    var lc = lastContactFor(d.id);
+    return { d: d, last: lc, days: lc ? daysSinceISO(lc.date) : null, next: nextFollowUpFor(d.id) };
+  });
+  var total = rows.length;
+  if (ff.q){
+    var q = ff.q.toLowerCase();
+    rows = rows.filter(function(r){
+      return [r.d.name, r.d.position, r.d.subSpecialty, locationOf(r.d)].join(" ").toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  rows.sort(function(a,b){
+    if (ff.sort === "name") return (a.d.name||"").localeCompare(b.d.name||"");
+    if (ff.sort === "next"){
+      var an = a.next ? a.next.dueDate : "9999", bn = b.next ? b.next.dueDate : "9999";
+      return an < bn ? -1 : an > bn ? 1 : (a.d.name||"").localeCompare(b.d.name||"");
+    }
+    // default: longest since last contact first (never contacted at the very top)
+    var ad = a.days === null ? 1e9 : a.days, bd = b.days === null ? 1e9 : b.days;
+    return bd - ad || (a.d.name||"").localeCompare(b.d.name||"");
+  });
+
+  var html = '<div class="detail-head">'+
+    '<div class="detail-title"><h1>'+escapeHtml(f.name)+'</h1><div class="org-sub">'+total+' doctor'+(total===1?"":"s")+(f.description?(" &middot; "+escapeHtml(f.description)):"")+'</div></div>'+
+    '<div class="action-row">'+
+      '<button class="btn btn-primary" type="button" data-action="open-add-to-this-folder" data-id="'+f.id+'">+ Add doctors</button>'+
+      '<button class="btn" type="button" data-action="open-edit-folder" data-id="'+f.id+'">Rename</button>'+
+      '<button class="btn btn-danger" type="button" data-action="open-delete-folder" data-id="'+f.id+'">Delete folder</button>'+
+    '</div>'+
+  '</div>';
+
+  if (!total){
+    html += '<div class="empty"><h3>No doctors in this folder yet</h3><p>Add them here, from a doctor\'s profile or quick view, or tick several on the Doctors list and choose "Add to folder".</p>'+
+      '<button class="btn btn-primary" type="button" data-action="open-add-to-this-folder" data-id="'+f.id+'">Add doctors</button></div>';
+    return html;
+  }
+
+  html += '<div class="folder-toolbar">'+
+    '<input type="text" id="folder-filter" placeholder="Filter by name, position, sub-specialty, location..." value="'+escapeHtml(ff.q)+'" />'+
+    '<label>Sort <select id="folder-sort">'+
+      '<option value="contact"'+(ff.sort==="contact"?" selected":"")+'>Longest since contact</option>'+
+      '<option value="next"'+(ff.sort==="next"?" selected":"")+'>Next follow-up</option>'+
+      '<option value="name"'+(ff.sort==="name"?" selected":"")+'>Name</option>'+
+    '</select></label>'+
+  '</div>';
+
+  html += '<div class="table-wrap"><table><thead><tr>'+
+    '<th class="checkcell"></th><th>Name</th><th>Position</th><th>Sub-specialty</th><th>Location</th><th>Mobile</th><th>Last contact</th><th>Next follow-up</th><th class="checkcell"></th>'+
+  '</tr></thead><tbody>';
+  if (!rows.length){
+    html += '<tr><td colspan="9"><div class="empty" style="border:none;background:none;">No matches.</div></td></tr>';
+  }
+  rows.forEach(function(r){
+    var d = r.d;
+    var lastHtml;
+    if (!r.last){ lastHtml = '<span class="due-chip over">Never</span>'; }
+    else {
+      var cls = r.days > CHECK_IN_DAYS ? "over" : "";
+      var ago = r.days === 0 ? "Today" : (r.days === 1 ? "Yesterday" : r.days + " days ago");
+      lastHtml = '<span class="due-chip '+cls+'" title="'+escapeHtml(fmtDate(r.last.date)+": "+(r.last.text||"").slice(0,140))+'">'+ago+'</span>'+
+        '<div class="folder-last-note">'+escapeHtml((r.last.text||"").slice(0,70))+((r.last.text||"").length>70?"&hellip;":"")+'</div>';
+    }
+    var nextHtml = "-";
+    if (r.next){
+      var ncls = r.next.dueDate < today ? "over" : (r.next.dueDate === today ? "today" : "");
+      nextHtml = '<span class="due-chip '+ncls+'">'+fmtDate(r.next.dueDate)+'</span><div class="folder-last-note">'+escapeHtml((r.next.title||"").slice(0,60))+'</div>';
+    }
+    html += '<tr data-action="quick-view-doctor" data-id="'+d.id+'">'+
+      '<td class="checkcell"><button type="button" class="btn-icon" data-action="quick-view-doctor" data-id="'+d.id+'" title="Quick view" aria-label="Quick view '+escapeHtml(d.name)+'">&#128065;</button></td>'+
+      '<td class="name">'+escapeHtml(d.name)+'</td>'+
+      '<td>'+escapeHtml(d.position||"-")+'</td>'+
+      '<td>'+escapeHtml(d.subSpecialty||"-")+'</td>'+
+      '<td>'+escapeHtml(locationOf(d)||"-")+'</td>'+
+      '<td>'+(d.mobile?'<a href="tel:'+escapeHtml(d.mobile)+'">'+escapeHtml(d.mobile)+'</a>':"-")+'</td>'+
+      '<td>'+lastHtml+'</td>'+
+      '<td>'+nextHtml+'</td>'+
+      '<td class="checkcell"><button type="button" class="btn-icon btn-icon-danger" data-action="remove-from-folder" data-folder="'+f.id+'" data-doctor="'+d.id+'" title="Remove from folder" aria-label="Remove '+escapeHtml(d.name)+' from folder">&times;</button></td>'+
+    '</tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function newFolderModalHtml(doctorIds){
+  doctorIds = doctorIds || [];
+  return '<h2>New folder</h2><form data-action="submit-new-folder" data-doctors="'+escapeHtml(doctorIds.join(","))+'">'+
+    '<div class="form-row"><label>Folder name</label><input type="text" name="name" required autofocus placeholder="e.g. Active doctors" /></div>'+
+    '<div class="form-row"><label>Description (optional)</label><input type="text" name="description" placeholder="e.g. Doctors I check in with every fortnight" /></div>'+
+    (doctorIds.length ? '<p class="sub" style="margin:0 0 10px;">'+doctorIds.length+' doctor'+(doctorIds.length===1?"":"s")+' will be added to it.</p>' : '')+
+    '<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Cancel</button><button type="submit" class="btn btn-primary">Create folder</button></div>'+
+  '</form>';
+}
+function editFolderModalHtml(f){
+  return '<h2>Rename folder</h2><form data-action="submit-edit-folder" data-id="'+f.id+'">'+
+    '<div class="form-row"><label>Folder name</label><input type="text" name="name" required autofocus value="'+escapeHtml(f.name)+'" /></div>'+
+    '<div class="form-row"><label>Description (optional)</label><input type="text" name="description" value="'+escapeHtml(f.description)+'" /></div>'+
+    '<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>'+
+  '</form>';
+}
+function deleteFolderModalHtml(f){
+  return '<h2>Delete folder?</h2><p>Delete <strong>'+escapeHtml(f.name)+'</strong>? The doctors in it are not deleted, they are just no longer grouped in this folder.</p>'+
+    '<div class="form-actions"><button class="btn" type="button" data-action="close-modal">Cancel</button>'+
+    '<button class="btn btn-danger" type="button" data-action="confirm-delete-folder" data-id="'+f.id+'">Delete folder</button></div>';
+}
+// Pick a folder for the doctors ticked on the Doctors list.
+function bulkFolderModalHtml(doctorIds){
+  var folders = foldersSorted();
+  return '<h2>Add '+doctorIds.length+' doctor'+(doctorIds.length===1?"":"s")+' to a folder</h2>'+
+    '<form data-action="submit-bulk-folder" data-doctors="'+escapeHtml(doctorIds.join(","))+'">'+
+    '<div class="form-row"><label>Folder</label><select name="folderId" id="bulk-folder-select">'+
+      folders.map(function(f){ return '<option value="'+f.id+'">'+escapeHtml(f.name)+' ('+folderCount(f.id)+')</option>'; }).join("")+
+      '<option value="__new"'+(folders.length?"":" selected")+'>+ New folder...</option>'+
+    '</select></div>'+
+    '<div class="form-row" id="bulk-folder-new-row"'+(folders.length?" hidden":"")+'><label>New folder name</label><input type="text" name="newName" placeholder="e.g. Active doctors" /></div>'+
+    '<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Cancel</button><button type="submit" class="btn btn-primary">Add to folder</button></div>'+
+  '</form>';
+}
+// Search-and-add picker for a folder's "+ Add doctors" button.
+function addToFolderModalHtml(f){
+  return '<h2>Add doctors to '+escapeHtml(f.name)+'</h2>'+
+    '<div class="form-row"><input type="text" id="folder-add-search" data-folder="'+f.id+'" placeholder="Type a name, email or mobile..." autocomplete="off" autofocus /></div>'+
+    '<div id="folder-add-results" class="folder-add-results">'+folderAddResultsHtml(f.id, "")+'</div>'+
+    '<div class="form-actions"><button type="button" class="btn btn-primary" data-action="close-modal">Done</button></div>';
+}
+function folderAddResultsHtml(folderId, q){
+  q = (q||"").trim().toLowerCase();
+  if (!q) return '<p class="sub" style="margin:4px 0;">Start typing to find doctors.</p>';
+  var inIds = {}; folderDoctorIds(folderId).forEach(function(id){ inIds[id] = true; });
+  var matches = state.doctors.filter(function(d){
+    return [d.name, d.email, d.mobile].join(" ").toLowerCase().indexOf(q) >= 0;
+  }).slice(0, 25);
+  if (!matches.length) return '<p class="sub" style="margin:4px 0;">No doctors match.</p>';
+  return matches.map(function(d){
+    var meta = [d.position, d.subSpecialty || d.specialty, locationOf(d)].filter(Boolean).map(escapeHtml).join(" &middot; ");
+    return '<div class="folder-add-row"><div><div class="folder-add-name">'+escapeHtml(d.name)+'</div><div class="folder-last-note">'+meta+'</div></div>'+
+      (inIds[d.id] ? '<span class="badge-in">Added</span>' :
+        '<button type="button" class="btn btn-sm" data-action="add-doctor-to-folder" data-folder="'+folderId+'" data-doctor="'+d.id+'">Add</button>')+
+    '</div>';
+  }).join("");
+}
+
 /* ---------- Quick view (doctors & hospitals) ---------- */
 
 function quickViewNotesHtml(linkedType, linkedId){
@@ -3044,6 +3378,16 @@ function quickViewNotesHtml(linkedType, linkedId){
     '<textarea name="text" required placeholder="Add a note..." rows="2"></textarea>'+
     '<input type="hidden" name="noteType" value="Update" />'+
     '<input type="hidden" name="date" value="'+todayISO()+'" />'+
+    '<label class="qv-followup-toggle"><input type="checkbox" name="createTask" class="qv-note-create-task" /> Set a follow-up task</label>'+
+    '<div class="qv-followup-row" hidden>'+
+      '<input type="date" name="taskDueDate" value="'+addDaysISO(todayISO(),1)+'" aria-label="Follow-up date" />'+
+      '<div class="qv-quick-dates">'+
+        '<button type="button" class="btn btn-sm btn-ghost" data-action="qv-followup-in" data-days="1">Tomorrow</button>'+
+        '<button type="button" class="btn btn-sm btn-ghost" data-action="qv-followup-in" data-days="7">1 week</button>'+
+        '<button type="button" class="btn btn-sm btn-ghost" data-action="qv-followup-in" data-days="14">2 weeks</button>'+
+        '<button type="button" class="btn btn-sm btn-ghost" data-action="qv-followup-in" data-days="30">1 month</button>'+
+      '</div>'+
+    '</div>'+
     '<div class="form-actions" style="margin-top:6px;"><button type="submit" class="btn btn-sm btn-primary">Add note</button></div>'+
   '</form>';
   if (notes.length === 0){
@@ -3088,6 +3432,12 @@ function quickViewDoctorHtml(id){
     '</div>';
   if (d.skills && d.skills.length){
     html += '<div class="qv-skills"><label>Skills</label><div class="tags">'+d.skills.map(function(s){ return '<span class="tag">'+escapeHtml(s)+'</span>'; }).join("")+'</div></div>';
+  }
+  html += '<div class="qv-folders"><label>Folders</label>'+doctorFoldersHtml(d)+'</div>';
+  var qvOpenTasks = state.tasks.filter(function(t){ return !t.done && t.linkedType==="doctor" && t.linkedId===d.id; })
+    .sort(function(a,b){ return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0; });
+  if (qvOpenTasks.length){
+    html += '<div class="qv-tasks"><label>Follow-ups</label>'+qvOpenTasks.slice(0,4).map(function(t){ return taskRowHtml(t, todayISO()); }).join("")+'</div>';
   }
   html += quickViewNotesHtml("doctor", d.id);
   html += '</div>';
@@ -3289,6 +3639,7 @@ function renderDoctorsList(){
   if (selCount > 0){
     html += '<div class="bulk-bar"><span class="count">'+selCount+' selected</span><span class="spacer"></span>'+
       '<button class="btn btn-sm btn-primary" type="button" data-action="bulk-email">Email selected</button>'+
+      '<button class="btn btn-sm" type="button" data-action="open-bulk-folder">Add to folder</button>'+
       '<button class="btn btn-sm btn-danger" type="button" data-action="open-bulk-delete">Delete selected</button>'+
       '<button class="btn btn-sm btn-ghost" type="button" data-action="clear-selection">Clear</button></div>';
   }
@@ -3430,6 +3781,7 @@ function renderDoctorSnapshotTab(d){
     '<div class="field-item"><label>BSB</label><div class="val">'+escapeHtml(d.bankBsb||"-")+'</div></div>'+
     '<div class="field-item"><label>Account number</label><div class="val">'+escapeHtml(d.bankAccountNumber||"-")+'</div></div>'+
   '</div></div>';
+  html += '<div class="panel" style="margin-top:16px;"><h2>Folders</h2>'+doctorFoldersHtml(d)+'</div>';
   html += agreementPanelHtml(d);
   html += jobRadarPanelHtml(d);
   html += doctorCampaignsPanelHtml(d);
@@ -5554,6 +5906,8 @@ function render(){
   if (key === "home" || key === ""){ body = renderHome(); key="home"; }
   else if (key === "doctors" && route[1]){ body = renderDoctorDetail(route[1], route[2]); }
   else if (key === "doctors"){ body = renderDoctorsList(); }
+  else if (key === "folders" && route[1]){ body = renderFolderDetail(route[1]); }
+  else if (key === "folders"){ body = renderFoldersList(); }
   else if (key === "hospitals" && route[1]){ body = renderHospitalDetail(route[1], route[2]); }
   else if (key === "hospitals"){ body = renderHospitalsList(); }
   else if (key === "clients" && route[1]){ body = renderClientDetail(route[1], route[2]); }
@@ -5902,6 +6256,42 @@ document.addEventListener("click", function(e){
   else if (action === "quick-view-hospital"){ quickView = {type:"hospital", id:actEl.getAttribute("data-id")}; render(); }
   else if (action === "quick-view-client"){ quickView = {type:"client", id:actEl.getAttribute("data-id")}; render(); }
   else if (action === "close-quick-view"){ quickView = null; render(); }
+  else if (action === "qv-followup-in"){
+    var qvForm = actEl.closest("form");
+    var qvDate = qvForm ? qvForm.querySelector("input[name='taskDueDate']") : null;
+    if (qvDate){ qvDate.value = addDaysISO(todayISO(), parseInt(actEl.getAttribute("data-days"),10)||1); }
+  }
+  else if (action === "open-new-folder"){ openModal(newFolderModalHtml([])); }
+  else if (action === "open-edit-folder"){ var efF = findFolder(actEl.getAttribute("data-id")); if (efF) openModal(editFolderModalHtml(efF)); }
+  else if (action === "open-delete-folder"){ var dfF = findFolder(actEl.getAttribute("data-id")); if (dfF) openModal(deleteFolderModalHtml(dfF)); }
+  else if (action === "confirm-delete-folder"){
+    var cdfF = findFolder(actEl.getAttribute("data-id"));
+    deleteFolder(actEl.getAttribute("data-id"));
+    closeModal();
+    if (cdfF) toast('Folder "'+cdfF.name+'" deleted.');
+    nav("#/folders");
+  }
+  else if (action === "open-add-to-this-folder"){
+    var atF = findFolder(actEl.getAttribute("data-id"));
+    if (atF){ openModal(addToFolderModalHtml(atF)); var atInput = document.getElementById("folder-add-search"); if (atInput) atInput.focus(); }
+  }
+  else if (action === "add-doctor-to-folder"){
+    var adFolder = actEl.getAttribute("data-folder");
+    addDoctorsToFolder(adFolder, [actEl.getAttribute("data-doctor")]);
+    var adBox = document.getElementById("folder-add-results"), adSearch = document.getElementById("folder-add-search");
+    if (adBox) adBox.innerHTML = folderAddResultsHtml(adFolder, adSearch ? adSearch.value : "");
+    persist();
+  }
+  else if (action === "remove-from-folder"){
+    var rfF = findFolder(actEl.getAttribute("data-folder")), rfD = findDoctor(actEl.getAttribute("data-doctor"));
+    removeDoctorFromFolder(actEl.getAttribute("data-folder"), actEl.getAttribute("data-doctor"));
+    if (rfF && rfD) toast(rfD.name+' removed from "'+rfF.name+'".');
+    persist();
+  }
+  else if (action === "open-bulk-folder"){
+    var bfIds = Object.keys(uiFilters.selectedDoctors).filter(function(k){ return uiFilters.selectedDoctors[k]; });
+    if (bfIds.length) openModal(bulkFolderModalHtml(bfIds));
+  }
   else if (action === "open-job"){ nav("#/jobs/"+actEl.getAttribute("data-id")); }
   else if (action === "delete-task"){ deleteTask(actEl.getAttribute("data-id")); persist(); }
   else if (action === "delete-document"){ deleteDocumentRecord(actEl.getAttribute("data-id")); persist(); }
@@ -6053,6 +6443,29 @@ document.addEventListener("click", function(e){
 });
 
 document.addEventListener("change", function(e){
+  if (e.target.classList && e.target.classList.contains("qv-note-create-task")){
+    var qvNoteForm = e.target.closest("form");
+    var qvRow = qvNoteForm ? qvNoteForm.querySelector(".qv-followup-row") : null;
+    if (qvRow) qvRow.hidden = !e.target.checked;
+    return;
+  }
+  if (e.target.classList && e.target.classList.contains("add-to-folder-select")){
+    var atfDoc = e.target.getAttribute("data-doctor"), atfVal = e.target.value;
+    if (atfVal === "__new"){ e.target.value = ""; openModal(newFolderModalHtml([atfDoc])); return; }
+    if (atfVal){
+      addDoctorsToFolder(atfVal, [atfDoc]);
+      var atfF = findFolder(atfVal), atfD = findDoctor(atfDoc);
+      if (atfF && atfD) toast(atfD.name+' added to "'+atfF.name+'".');
+      persist();
+    }
+    return;
+  }
+  if (e.target.id === "folder-sort"){ uiFilters.folder.sort = e.target.value; render(); return; }
+  if (e.target.id === "bulk-folder-select"){
+    var bfNewRow = document.getElementById("bulk-folder-new-row");
+    if (bfNewRow) bfNewRow.hidden = e.target.value !== "__new";
+    return;
+  }
   if (e.target.id === "note-create-task"){
     var dateRow = document.getElementById("note-task-date-row");
     if (dateRow) dateRow.hidden = !e.target.checked;
@@ -6248,6 +6661,18 @@ document.addEventListener("paste", function(e){
 });
 
 document.addEventListener("input", function(e){
+  if (e.target.id === "folder-add-search"){
+    var fasBox = document.getElementById("folder-add-results");
+    if (fasBox) fasBox.innerHTML = folderAddResultsHtml(e.target.getAttribute("data-folder"), e.target.value);
+    return;
+  }
+  if (e.target.id === "folder-filter"){
+    uiFilters.folder.q = e.target.value;
+    render();
+    var ffEl = document.getElementById("folder-filter");
+    if (ffEl){ ffEl.focus(); var ffV = ffEl.value; ffEl.value = ""; ffEl.value = ffV; }
+    return;
+  }
   if (e.target.id === "home-date-input"){
     if (e.target.value){ homeDate = e.target.value; render(); }
     return;
@@ -6470,6 +6895,43 @@ document.addEventListener("submit", function(e){
   } else if (action === "submit-edit-template"){
     updateTemplate(form.getAttribute("data-id"), { name:fd.get("name"), subject:fd.get("subject"), body:fd.get("body") });
     closeModal(); persist();
+  } else if (action === "submit-new-folder"){
+    var nfName = (fd.get("name")||"").trim();
+    if (!nfName){ toast("Please give the folder a name."); return; }
+    var nfDocs = (form.getAttribute("data-doctors")||"").split(",").filter(Boolean);
+    closeModal();
+    createFolder(nfName, (fd.get("description")||"").trim()).then(function(nf){
+      var nfAdded = nfDocs.length ? addDoctorsToFolder(nf.id, nfDocs) : 0;
+      if (nfDocs.length){ uiFilters.selectedDoctors = {}; }
+      toast('Folder "'+nfName+'" created'+(nfAdded?(" with "+nfAdded+" doctor"+(nfAdded===1?"":"s")):"")+'.');
+      persist();
+      if (!nfDocs.length){ nav("#/folders/"+nf.id); }
+    });
+    persist();
+  } else if (action === "submit-edit-folder"){
+    var efName = (fd.get("name")||"").trim();
+    if (!efName){ toast("Please give the folder a name."); return; }
+    updateFolder(form.getAttribute("data-id"), { name: efName, description: (fd.get("description")||"").trim() });
+    closeModal(); persist();
+  } else if (action === "submit-bulk-folder"){
+    var bfDocs = (form.getAttribute("data-doctors")||"").split(",").filter(Boolean);
+    var bfFolderId = fd.get("folderId");
+    var bfDone = function(folder){
+      var added = addDoctorsToFolder(folder.id, bfDocs);
+      uiFilters.selectedDoctors = {};
+      toast(added+' added to "'+folder.name+'"'+(added < bfDocs.length ? (" ("+(bfDocs.length-added)+" already in it)") : "")+'.');
+      persist();
+    };
+    if (bfFolderId === "__new"){
+      var bfName = (fd.get("newName")||"").trim();
+      if (!bfName){ toast("Please give the new folder a name."); return; }
+      closeModal();
+      createFolder(bfName, "").then(bfDone);
+    } else {
+      var bfF = findFolder(bfFolderId);
+      closeModal();
+      if (bfF) bfDone(bfF);
+    }
   } else if (action === "submit-add-note"){
     var linkedType2 = form.getAttribute("data-linked"), linkedId2 = form.getAttribute("data-id");
     addNoteFull(linkedType2, linkedId2, {
