@@ -292,6 +292,9 @@ input,select,textarea{font-family:inherit; font-size:inherit;}
 .rev-section-head{display:flex; align-items:baseline; gap:12px; margin:26px 0 10px;}
 .rev-section-head h2{margin:0; font-size:17px;}
 td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+.xero-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
+.xero-sub{font-size:14px; margin:6px 0 10px;}
+.xero-pill{display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; background:#E6F3F8; color:#1F6E8C; border:1px solid #B9DCEA; vertical-align:middle;}
 .rev-footnote{font-size:12px; color:var(--ink-400); margin-top:14px; max-width:820px;}
 .rev-mini{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
 .rev-mini-row{display:flex; align-items:center; gap:8px; font-size:12.5px;}
@@ -1904,7 +1907,8 @@ function rowToInvoice(r){
     updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
     sentAt: r.sent_at ? new Date(r.sent_at).getTime() : null,
     paidAt: r.paid_at ? new Date(r.paid_at).getTime() : null,
-    timesheetId: r.timesheet_id||null
+    timesheetId: r.timesheet_id||null,
+    xeroInvoiceId: r.xero_invoice_id||null, xeroStatus: r.xero_status||"", amountPaid: r.amount_paid
   };
 }
 function rowToCrmUser(r){
@@ -2102,6 +2106,8 @@ function loadInitialData(){
     dataLoading = false;
     invalidateRecruitersCache();
     render();
+    handleXeroReturn();
+    xeroBackgroundSync();
   }).catch(function(err){
     dataLoading = false;
     console.error(err);
@@ -3125,6 +3131,155 @@ function renderShell(bodyHtml, activeKey){
   '<datalist id="recruiter-list">'+recruiterOptions+'</datalist>'+
   '<div class="toast-wrap" id="toast-wrap"></div>'+
   (quickView ? quickViewPanelHtml(quickView.type, quickView.id) : "");
+}
+
+/* ---------- Xero (draft invoices + status sync) ---------- */
+
+var xeroState = { checked:false, connected:false, tenantName:"", connectedBy:"", syncing:false, lastSync:null, options:null, optionsLoading:false, settings:null };
+var XERO_SUGGESTED_ACCOUNTS = [
+  { code:"210", name:"Locum billings", type:"REVENUE", use:"Locums where TDN pays the doctor (full client rate billed)" },
+  { code:"211", name:"Locum placement fees", type:"REVENUE", use:"Locums where the hospital pays the doctor (TDN fee only)" },
+  { code:"212", name:"Permanent placement fees", type:"REVENUE", use:"Permanent placement fees" },
+  { code:"213", name:"Split fee income", type:"REVENUE", use:"TDN's share when another agency invoices the client" },
+  { code:"310", name:"Locum doctor costs", type:"DIRECTCOSTS", use:"Doctor pay on TDN-pays-doctor placements" },
+  { code:"311", name:"Agency split fees", type:"DIRECTCOSTS", use:"Paid to another agency when TDN invoices" }
+];
+var XERO_ACCOUNT_FIELDS = [
+  ["account_locum_billings", "Locums - TDN pays the doctor"],
+  ["account_locum_fees", "Locums - hospital pays the doctor (TDN fee only)"],
+  ["account_perm_fees", "Permanent placement fees"],
+  ["account_split_income", "Split - other agency invoices the client"]
+];
+
+function xeroLoadOptions(){
+  if (xeroState.optionsLoading) return;
+  xeroState.optionsLoading = true; render();
+  Promise.all([xeroCall("options"), xeroState.settings ? Promise.resolve() : xeroLoadSettings()]).then(function(rs){
+    xeroState.optionsLoading = false;
+    if (!rs[0].ok){ toast(rs[0].error); render(); return; }
+    xeroState.options = rs[0].data; render();
+  });
+}
+function xeroCall(action, extra){
+  var body = { action: action }; for (var k in (extra||{})) body[k] = extra[k];
+  return invokeEdgeFunction("xero-api", body);
+}
+function xeroLoadSettings(){
+  return sb.from("xero_settings").select("*").eq("id","main").maybeSingle().then(function(res){
+    xeroState.settings = (res && res.data) || { id:"main" };
+  });
+}
+function reloadInvoicesFromDb(){
+  return sb.from("invoices").select("*").then(function(res){
+    if (res && res.data){ state.invoices = res.data.map(rowToInvoice); }
+  });
+}
+// Runs once after the CRM loads: check the connection, then pull invoice statuses from Xero.
+function xeroBackgroundSync(){
+  xeroCall("status").then(function(r){
+    xeroState.checked = true;
+    if (!r.ok) return;
+    xeroState.connected = !!r.data.connected; xeroState.tenantName = r.data.tenantName || ""; xeroState.connectedBy = r.data.connectedBy || "";
+    if (xeroState.connected){ xeroLoadSettings(); return xeroSyncNow(true); }
+    render();
+  });
+}
+function xeroSyncNow(silent){
+  if (xeroState.syncing) return Promise.resolve();
+  xeroState.syncing = true;
+  return xeroCall("sync").then(function(r){
+    xeroState.syncing = false;
+    if (!r.ok){ if (!silent) toast(r.error); render(); return; }
+    xeroState.lastSync = Date.now();
+    return reloadInvoicesFromDb().then(function(){
+      if (!silent) toast(r.data.changed ? (r.data.changed + " invoice" + (r.data.changed===1?"":"s") + " updated from Xero.") : "Up to date with Xero.");
+      render();
+    });
+  });
+}
+// After Xero sends the user back (?xero=connected|cancelled|error)
+function handleXeroReturn(){
+  var q = new URLSearchParams(location.search);
+  var res = q.get("xero"); if (!res) return;
+  var detail = q.get("xero_detail") || "";
+  history.replaceState(null, "", location.pathname + location.hash);
+  setTimeout(function(){
+    if (res === "connected") toast("Xero connected" + (detail ? " to " + detail : "") + ". Next: choose your revenue accounts below.");
+    else if (res === "cancelled") toast("Xero connection cancelled.");
+    else toast("Couldn't connect Xero: " + detail);
+  }, 600);
+}
+
+function xeroSettingsHtml(){
+  var html = '<div class="settings-section"><h2>Xero</h2><div class="panel">';
+  if (!xeroState.checked) return html + '<p class="sub" style="margin:0;">Checking Xero connection...</p></div></div>';
+  if (!xeroState.connected){
+    return html + '<p style="margin-top:0;">Connect Xero so you can create draft invoices from the CRM in one click, and so invoice statuses (sent, paid) flow back into the Revenue Tracker automatically.</p>'+
+      '<button class="btn btn-primary" type="button" data-action="xero-connect">Connect Xero</button>'+
+      '<div class="note-box" style="margin-top:10px;">You\'ll log in to Xero and approve access for "TDN CRM". You need to be an admin on the Xero organisation.</div></div></div>';
+  }
+  var s = xeroState.settings || {};
+  html += '<div class="xero-head"><div><strong>Connected to '+escapeHtml(xeroState.tenantName || "Xero")+'</strong>'+
+      (xeroState.lastSync ? '<div class="sub">Last synced '+new Date(xeroState.lastSync).toLocaleTimeString("en-AU",{hour:"numeric",minute:"2-digit"})+'</div>' : '')+'</div>'+
+    '<div class="action-row"><button class="btn btn-sm" type="button" data-action="xero-sync"'+(xeroState.syncing?" disabled":"")+'>'+(xeroState.syncing?"Syncing...":"Sync invoice statuses")+'</button>'+
+    '<button class="btn btn-sm btn-danger" type="button" data-action="xero-disconnect">Disconnect</button></div></div>';
+
+  var o = xeroState.options;
+  if (!o){
+    html += '<p class="sub">'+(xeroState.optionsLoading ? "Loading your Xero accounts..." : "")+'</p>'+
+      (xeroState.optionsLoading ? "" : '<button class="btn btn-sm" type="button" data-action="xero-load-options">Load accounts from Xero</button>');
+    return html + '</div></div>';
+  }
+  var accOpts = function(cur){
+    return '<option value="">Choose an account...</option>' + o.accounts.map(function(a){
+      return '<option value="'+escapeHtml(a.code)+'"'+(String(a.code)===String(cur||"")?" selected":"")+'>'+escapeHtml(a.code+" - "+a.name)+'</option>';
+    }).join("");
+  };
+  var have = {}; o.accounts.forEach(function(a){ have[String(a.code)] = true; });
+  var missing = XERO_SUGGESTED_ACCOUNTS.filter(function(a){ return !have[a.code]; });
+  html += '<h3 class="xero-sub">Revenue accounts for CRM invoices</h3>';
+  if (missing.length){
+    html += '<div class="note-box" style="margin-bottom:12px;">Suggested accounts not in Xero yet: '+missing.map(function(a){ return escapeHtml(a.code+" "+a.name); }).join(", ")+'. '+
+      '<button class="link-add" type="button" data-action="xero-open-create-accounts">Create them in Xero</button></div>';
+  }
+  html += '<form data-action="submit-xero-settings">';
+  XERO_ACCOUNT_FIELDS.forEach(function(f){
+    html += '<div class="form-row"><label>'+escapeHtml(f[1])+'</label><select name="'+f[0]+'">'+accOpts(s[f[0]])+'</select></div>';
+  });
+  html += '<div class="two-col">'+
+    '<div class="form-row"><label>Invoice branding (logo)</label><select name="branding_theme_id"><option value="">Xero default</option>'+
+      o.brandingThemes.map(function(b){ return '<option value="'+escapeHtml(b.id)+'"'+(b.id===s.branding_theme_id?" selected":"")+'>'+escapeHtml(b.name)+'</option>'; }).join("")+'</select></div>'+
+    '<div class="form-row"><label>Tag recruiter with tracking category</label><select name="tracking_category_name"><option value="">Don\'t tag</option>'+
+      o.trackingCategories.map(function(t){ return '<option'+(t.name===s.tracking_category_name?" selected":"")+'>'+escapeHtml(t.name)+'</option>'; }).join("")+'</select></div>'+
+  '</div>'+
+  '<div class="form-actions"><button class="btn btn-primary" type="submit">Save Xero settings</button></div></form>';
+  return html + '</div></div>';
+}
+function xeroCreateAccountsModalHtml(){
+  var have = {}; ((xeroState.options||{}).accounts||[]).forEach(function(a){ have[String(a.code)] = true; });
+  var me = getViewerName();
+  var my = state.mySettings || {}; var recruiterName = my.displayName || me;
+  return '<h2>Create accounts in Xero?</h2>'+
+    '<p>This adds these to your Xero chart of accounts (GST on Income for revenue, GST on Expenses for costs). Anything already there is skipped.</p>'+
+    '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Used for</th></tr></thead><tbody>'+
+    XERO_SUGGESTED_ACCOUNTS.map(function(a){ return '<tr><td>'+a.code+'</td><td>'+escapeHtml(a.name)+(have[a.code]?' <span class="folder-last-note">(already there)</span>':'')+'</td><td>'+(a.type==="REVENUE"?"Revenue":"Cost of sales")+'</td><td>'+escapeHtml(a.use)+'</td></tr>'; }).join("")+
+    '</tbody></table></div>'+
+    '<p>It also adds a <strong>Recruiter</strong> tracking category with the option <strong>'+escapeHtml(recruiterName)+'</strong>.</p>'+
+    '<p class="sub">Worth a quick check with your bookkeeper - you can rename or archive accounts in Xero any time.</p>'+
+    '<div class="form-actions"><button class="btn" type="button" data-action="close-modal">Cancel</button>'+
+    '<button class="btn btn-primary" type="button" data-action="xero-confirm-create-accounts" data-recruiter="'+escapeHtml(recruiterName)+'">Create in Xero</button></div>';
+}
+function xeroInvoiceButtonsHtml(inv){
+  if (inv.type !== "agency") return "";
+  if (!xeroState.connected) return '<button class="btn" type="button" data-action="go-settings-xero" title="Connect Xero in Settings first">Create Xero draft</button>';
+  var label = inv.xeroInvoiceId && (inv.xeroStatus === "DRAFT" || !inv.xeroStatus) ? "Update Xero draft" : (inv.xeroInvoiceId ? "" : "Create Xero draft");
+  return (label ? '<button class="btn btn-primary" type="button" data-action="xero-create-draft" data-id="'+inv.id+'">'+label+'</button>' : '')+
+    (inv.xeroInvoiceId ? '<a class="btn" target="_blank" rel="noopener" href="https://go.xero.com/app/invoicing/edit/'+escapeHtml(inv.xeroInvoiceId)+'">Open in Xero</a>' : '');
+}
+function xeroInvoiceStatusHtml(inv){
+  if (!inv.xeroInvoiceId) return "";
+  var map = { DRAFT:"Draft in Xero", SUBMITTED:"Awaiting approval in Xero", AUTHORISED:"Approved in Xero", PAID:"Paid in Xero", VOIDED:"Voided in Xero", DELETED:"Deleted in Xero" };
+  return '<span class="xero-pill">'+escapeHtml(map[inv.xeroStatus] || "In Xero")+'</span>';
 }
 
 /* ---------- Revenue Tracker (projected / invoiced / paid margin by recruiter and month) ---------- */
@@ -5734,7 +5889,7 @@ function renderInvoiceDetail(id){
 
   var html = '<div class="page-head"><div><h1>'+(inv.type==="agency"?"Agency fee invoice":"Doctor wage invoice")+'</h1>'+
     '<div class="sub mono">'+escapeHtml(inv.invoiceNumber)+(pl?(' &middot; <a href="#/placements/'+pl.id+'">View placement</a>'):'')+'</div></div>'+
-    '<div>'+statusBadgeHtml(inv.status)+'</div></div>';
+    '<div>'+statusBadgeHtml(inv.status)+' '+xeroInvoiceStatusHtml(inv)+'</div></div>';
 
   html += '<div class="panel no-print" style="margin-bottom:16px;"><div class="form-actions" style="justify-content:flex-start;flex-wrap:wrap;">';
   if (inv.status === "Draft"){
@@ -5749,6 +5904,7 @@ function renderInvoiceDetail(id){
   if (inv.status !== "Draft"){
     html += '<button class="btn" type="button" data-action="set-invoice-status" data-id="'+inv.id+'" data-status="Draft">Reopen as draft</button>';
   }
+  html += xeroInvoiceButtonsHtml(inv);
   html += '<button class="btn" type="button" data-action="open-email-invoice" data-id="'+inv.id+'">Email invoice</button>';
   if (inv.status === "Sent" || inv.status === "Overdue"){
     html += '<button class="btn" type="button" data-action="open-invoice-reminder" data-id="'+inv.id+'">Send reminder</button>';
@@ -5895,6 +6051,8 @@ function renderSettings(){
     '</form>'+
   '</div></div>';
 
+  html += xeroSettingsHtml();
+  if (xeroState.connected && !xeroState.options && !xeroState.optionsLoading){ setTimeout(xeroLoadOptions, 0); }
   html += '<div class="settings-section"><h2>Email templates</h2>'+
     '<button class="btn btn-sm btn-primary" type="button" data-action="open-add-template" style="margin-bottom:12px;">+ New template</button>';
   if (state.emailTemplates.length === 0){
@@ -6745,6 +6903,48 @@ document.addEventListener("click", function(e){
   else if (action === "quick-view-hospital"){ quickView = {type:"hospital", id:actEl.getAttribute("data-id")}; render(); }
   else if (action === "quick-view-client"){ quickView = {type:"client", id:actEl.getAttribute("data-id")}; render(); }
   else if (action === "close-quick-view"){ quickView = null; render(); }
+  else if (action === "xero-connect"){
+    actEl.disabled = true;
+    xeroCall("authorize").then(function(r){ if (!r.ok){ actEl.disabled = false; toast(r.error); return; } location.href = r.data.url; });
+  }
+  else if (action === "xero-sync"){ xeroSyncNow(false); render(); }
+  else if (action === "xero-disconnect"){
+    openModal('<h2>Disconnect Xero?</h2><p>The CRM will stop creating drafts and syncing invoice statuses until you connect again. Nothing in Xero is changed.</p>'+
+      '<div class="form-actions"><button class="btn" type="button" data-action="close-modal">Cancel</button><button class="btn btn-danger" type="button" data-action="xero-confirm-disconnect">Disconnect</button></div>');
+  }
+  else if (action === "xero-confirm-disconnect"){
+    closeModal();
+    xeroCall("disconnect").then(function(r){ if (!r.ok){ toast(r.error); return; } xeroState.connected = false; xeroState.options = null; toast("Xero disconnected."); render(); });
+  }
+  else if (action === "xero-load-options"){ xeroLoadOptions(); }
+  else if (action === "xero-open-create-accounts"){ openModal(xeroCreateAccountsModalHtml()); }
+  else if (action === "xero-confirm-create-accounts"){
+    actEl.disabled = true; actEl.textContent = "Creating...";
+    xeroCall("create_accounts", { accounts: XERO_SUGGESTED_ACCOUNTS.map(function(a){ return { code:a.code, name:a.name, type:a.type }; }), trackingOption: actEl.getAttribute("data-recruiter") }).then(function(r){
+      closeModal();
+      if (!r.ok){ toast(r.error); return; }
+      var s = xeroState.settings || {};
+      var defaults = { account_locum_billings:"210", account_locum_fees:"211", account_perm_fees:"212", account_split_income:"213" };
+      var patch = { id:"main" }; for (var k in defaults){ if (!s[k]) patch[k] = defaults[k]; }
+      if (!s.tracking_category_name) patch.tracking_category_name = "Recruiter";
+      sb.from("xero_settings").upsert(patch).then(function(){
+        toast("Created in Xero: " + (r.data.made.length ? r.data.made.join(", ") : "nothing new") + (r.data.tracking ? ". " + r.data.tracking : "") + ".");
+        xeroState.options = null; xeroLoadSettings().then(xeroLoadOptions);
+      });
+    });
+  }
+  else if (action === "go-settings-xero"){ toast("Connect Xero in Settings first."); nav("#/settings"); }
+  else if (action === "xero-create-draft"){
+    var xInv = findInvoice(actEl.getAttribute("data-id"));
+    actEl.disabled = true; actEl.textContent = "Sending to Xero...";
+    xeroCall("create_draft", { invoiceId: xInv.id }).then(function(r){
+      if (!r.ok){ actEl.disabled = false; actEl.textContent = "Create Xero draft"; toast(r.error); return; }
+      xInv.xeroInvoiceId = r.data.xeroInvoiceId; xInv.xeroStatus = r.data.status;
+      toast((r.data.updated ? "Xero draft updated" : "Draft invoice created in Xero") + " - review and approve it in Xero.");
+      render();
+      window.open(r.data.url, "_blank", "noopener");
+    });
+  }
   else if (action === "rev-shift"){ uiFilters.revenue.start = addMonthsKey(uiFilters.revenue.start || monthKey(todayISO()), parseInt(actEl.getAttribute("data-n"),10)||0); render(); }
   else if (action === "rev-today"){ uiFilters.revenue.start = addMonthsKey(monthKey(todayISO()), -2); uiFilters.revenue.sel = monthKey(todayISO()); render(); }
   else if (action === "rev-select"){
@@ -7399,6 +7599,15 @@ document.addEventListener("submit", function(e){
   } else if (action === "submit-edit-template"){
     updateTemplate(form.getAttribute("data-id"), { name:fd.get("name"), subject:fd.get("subject"), body:fd.get("body") });
     closeModal(); persist();
+  } else if (action === "submit-xero-settings"){
+    var xs = { id:"main", updated_at: new Date().toISOString() };
+    XERO_ACCOUNT_FIELDS.forEach(function(f){ xs[f[0]] = fd.get(f[0]) || null; });
+    xs.branding_theme_id = fd.get("branding_theme_id") || null;
+    xs.tracking_category_name = fd.get("tracking_category_name") || null;
+    sb.from("xero_settings").upsert(xs).then(function(res){
+      if (res.error){ toast("Couldn't save Xero settings."); return; }
+      xeroState.settings = xs; toast("Xero settings saved."); render();
+    });
   } else if (action === "submit-new-folder"){
     var nfName = (fd.get("name")||"").trim();
     if (!nfName){ toast("Please give the folder a name."); return; }
