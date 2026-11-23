@@ -3379,7 +3379,8 @@ function tdnShareOf(p, gross){
 }
 // How TDN's share is divided between recruiters.
 function recruiterAllocation(p, amount){
-  var owner = p.recruiter || "Unassigned";
+  var ownerUser = p.recruiterUserId ? findCrmUser(p.recruiterUserId) : null;
+  var owner = (ownerUser && crmUserLabel(ownerUser)) || p.recruiter || "Unassigned";
   var second = p.secondRecruiterUserId ? findCrmUser(p.secondRecruiterUserId) : null;
   var pct = revNum(p.secondRecruiterPercent);
   if (second && pct){
@@ -6253,7 +6254,9 @@ function addPlacementModalHtml(existing, prefill){
   prefill = prefill || {};
   var p = existing || {
     doctorId: prefill.doctorId||"", hospitalId: prefill.hospitalId||"", status:"Active",
-    daysOfWeek: [], splitFees: [], customFields: {}
+    daysOfWeek: [], splitFees: [], customFields: {},
+    // new placements are owned by whoever creates them unless changed
+    recruiterUserId: (currentUser && findCrmUser(currentUser.id)) ? currentUser.id : ""
   };
   var cf = p.customFields || {};
   var selectedDoc = p.doctorId ? findDoctor(p.doctorId) : null;
