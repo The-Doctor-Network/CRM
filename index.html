@@ -262,6 +262,43 @@ input,select,textarea{font-family:inherit; font-size:inherit;}
 .folder-add-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--paper-50);}
 .folder-add-name{font-weight:600; font-size:13px;}
 .badge-in{font-size:11.5px; color:var(--teal-700); font-weight:600;}
+.rev-controls{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px;}
+.rev-controls label{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-600); margin-left:6px;}
+.rev-controls select{font:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--line); border-radius:8px;}
+.rev-legend{display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; font-size:12px; color:var(--ink-600); margin-left:auto;}
+.rev-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle;}
+.rev-dot.rev-paid, .rev-badge.rev-paid{background:#2F8F5B;}
+.rev-dot.rev-invoiced, .rev-badge.rev-invoiced{background:#2B7A9E;}
+.rev-dot.rev-overdue, .rev-badge.rev-overdue{background:#C2553A;}
+.rev-dot.rev-projected{background:transparent; border:1.5px dashed #8A8F9C; width:7px; height:7px;}
+.rev-badge{display:inline-block; font-size:11px; font-weight:600; color:#fff; padding:2px 8px; border-radius:999px;}
+.rev-badge.rev-projected{background:transparent; color:var(--ink-600); border:1px dashed #8A8F9C;}
+.rev-tiles{display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:12px; margin-bottom:18px;}
+.rev-tile{border:1px solid var(--line); border-radius:14px; padding:14px 16px; background:var(--paper-50);}
+.rev-tile-label{font-size:12px; color:var(--ink-600);}
+.rev-tile-value{font-size:24px; font-weight:700; margin:4px 0 2px; font-variant-numeric:tabular-nums;}
+.rev-tile-sub{font-size:11.5px; color:var(--ink-400);}
+.rev-tile-alert .rev-tile-value{color:#C2553A;}
+.rev-grid th.rev-now{color:var(--teal-700);}
+.rev-cell{cursor:pointer; vertical-align:top; min-width:110px;}
+.rev-cell:hover{background:var(--teal-100);}
+.rev-cell.rev-sel{box-shadow:inset 0 0 0 2px var(--teal-600);}
+.rev-total{font-weight:700; font-variant-numeric:tabular-nums;}
+.rev-parts{display:flex; flex-direction:column; gap:1px; margin-top:3px;}
+.rev-part{font-size:11px; color:var(--ink-600); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.rev-zero{color:var(--ink-400);}
+.rev-rowtotal{font-weight:700; font-variant-numeric:tabular-nums;}
+.rev-totalrow td{border-top:2px solid var(--line); font-weight:700;}
+.rev-section-head{display:flex; align-items:baseline; gap:12px; margin:26px 0 10px;}
+.rev-section-head h2{margin:0; font-size:17px;}
+td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+.rev-footnote{font-size:12px; color:var(--ink-400); margin-top:14px; max-width:820px;}
+.rev-mini{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
+.rev-mini-row{display:flex; align-items:center; gap:8px; font-size:12.5px;}
+.rev-mini-label{flex:1; min-width:0;}
+.rev-mini-date{color:var(--ink-400); white-space:nowrap;}
+.rev-mini-amt{font-weight:600; font-variant-numeric:tabular-nums; min-width:64px; text-align:right;}
+[hidden].rev-form-locum, [hidden].rev-form-perm, .form-row[hidden], .two-col[hidden]{display:none !important;}
 .qv-foot{
   margin-top:auto; display:flex; gap:8px; padding:16px 20px; border-top:1px solid var(--line);
 }
@@ -880,6 +917,7 @@ var uiFilters = {
   clients: { name:"", jobTitle:"", specialty:"", subSpecialty:"", hospital:"", hospitalType:"", location:"", email:"", recruiter:"", sortDir:"asc", page:1 },
   invoices: { invoiceNumber:"", type:"", candidate:"", hospital:"", status:"", sortDir:"desc", page:1 },
   folder: { q:"", sort:"contact" },
+  revenue: { start:"", months:8, recruiter:"", sel:"" },
   selectedDoctors: {},
   selectedClients: {}
 };
@@ -1769,11 +1807,17 @@ function placementToRow(p){
     status: p.status||null, applicant_status: p.applicantStatus||null, job_status_label: p.jobStatusLabel||null,
     placement_summary: p.placementSummary||null, terms_file_name: p.termsFileName||null, recruiter: p.recruiter||null,
     recruiter_user_id: p.recruiterUserId||null,
+    margin_type: p.marginType||null, margin_percent: numOrNull(p.marginPercent), invoice_frequency: p.invoiceFrequency||null,
+    client_payment_terms_days: numOrNull(p.clientPaymentTermsDays), hours_per_day: numOrNull(p.hoursPerDay),
+    perm_salary: numOrNull(p.permSalary), perm_fee_percent: numOrNull(p.permFeePercent),
+    booking_route: p.bookingRoute||null, split_agency_name: p.splitAgencyName||null, tdn_split_percent: numOrNull(p.tdnSplitPercent),
+    second_recruiter_user_id: p.secondRecruiterUserId||null, second_recruiter_percent: numOrNull(p.secondRecruiterPercent),
     days_of_week: p.daysOfWeek||[], split_fees: p.splitFees||[], custom_fields: p.customFields||{},
     created_at: new Date(p.createdAt||Date.now()).toISOString(),
     updated_at: new Date(p.updatedAt||Date.now()).toISOString()
   };
 }
+function numStr(v){ return (v===null || v===undefined) ? "" : String(v); }
 function rowToPlacement(r){
   return {
     id: r.id, doctorId: r.doctor_id||"", hospitalId: r.hospital_id||"", jobId: r.job_id||null,
@@ -1797,6 +1841,11 @@ function rowToPlacement(r){
     status: r.status||"Active", applicantStatus: r.applicant_status||"", jobStatusLabel: r.job_status_label||"",
     placementSummary: r.placement_summary||"", termsFileName: r.terms_file_name||"", recruiter: r.recruiter||"",
     recruiterUserId: r.recruiter_user_id||"",
+    marginType: r.margin_type||"", marginPercent: numStr(r.margin_percent), invoiceFrequency: r.invoice_frequency||"",
+    clientPaymentTermsDays: numStr(r.client_payment_terms_days), hoursPerDay: numStr(r.hours_per_day),
+    permSalary: numStr(r.perm_salary), permFeePercent: numStr(r.perm_fee_percent),
+    bookingRoute: r.booking_route||"", splitAgencyName: r.split_agency_name||"", tdnSplitPercent: numStr(r.tdn_split_percent),
+    secondRecruiterUserId: r.second_recruiter_user_id||"", secondRecruiterPercent: numStr(r.second_recruiter_percent),
     daysOfWeek: r.days_of_week||[], splitFees: r.split_fees||[], customFields: r.custom_fields||{},
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now()
@@ -2354,7 +2403,8 @@ var PLACEMENT_FIELD_KEYS = [
   "billingContact","billingEmail","billingAddress","poNumber","invoiceNumber","invoiceStatus","paymentTerms","dueDate",
   "timesheetApproverName","timesheetApproverEmail","timesheetApproverPhone","timesheetFrequency","timesheetFrequencyCustomDays","paymentModel",
   "status","applicantStatus","jobStatusLabel",
-  "placementSummary","termsFileName","recruiter","recruiterUserId"
+  "placementSummary","termsFileName","recruiter","recruiterUserId",
+  "marginType","marginPercent","invoiceFrequency","clientPaymentTermsDays","hoursPerDay","permSalary","permFeePercent","bookingRoute","splitAgencyName","tdnSplitPercent","secondRecruiterUserId","secondRecruiterPercent"
 ];
 function placementFromData(data){
   var p = {};
@@ -2383,15 +2433,13 @@ function updatePlacement(id, data){
   sbUpdate("placements", id, placementToRow(fresh));
 }
 function placementNetMargin(p){
-  var c = parseFloat(p.clientRate), r = parseFloat(p.candidateRate);
-  if (isNaN(c) || isNaN(r)) return null;
-  return c - r;
+  return placementMarginPerUnit(p);
 }
 function placementWeeklyMargin(p){
-  var net = placementNetMargin(p);
-  var days = parseFloat(p.daysPerWeek);
-  if (net === null || isNaN(days)) return null;
-  return net * days;
+  if (isPermPlacement(p) || p.rateType === "Fixed Fee") return null;
+  var perDay = placementMarginPerDay(p);
+  if (perDay === null) return null;
+  return perDay * placementWorkDows(p).length;
 }
 // Timesheets never get generated for Permanent placements (see the scheduler), so an approver
 // email is only meaningful - and only required - for every other placement type.
@@ -2429,6 +2477,11 @@ function placementDataFromForm(fd){
   data.recruiter = recruiterUser ? crmUserLabel(recruiterUser) : "";
   data.jobId = null;
   data.daysOfWeek = fd.getAll("daysOfWeek");
+  if (data.marginType === MARGIN_TYPES[0] && data.candidateRate && data.marginPercent){
+    data.clientRate = String(Math.round(parseFloat(data.candidateRate) * (1 + parseFloat(data.marginPercent)/100) * 100) / 100);
+  }
+  if (data.marginType === MARGIN_TYPES[1]) data.marginPercent = "";
+  if (!/^Split/.test(data.bookingRoute||"")){ data.splitAgencyName = ""; data.tdnSplitPercent = ""; }
   data.splitFees = (fd.get("splitFees")||"").split(",").map(function(s){return s.trim();}).filter(Boolean);
   data.customFields = {
     jobOrderNo: fd.get("cfJobOrderNo")||"", providerNo: fd.get("cfProviderNo")||"",
@@ -3041,6 +3094,7 @@ function renderShell(bodyHtml, activeKey){
         navItem("#/campaigns","Campaigns", activeKey==="campaigns")+
         navItem("#/jobs","Jobs", activeKey==="jobs")+
         navItem("#/placements","Placements", activeKey==="placements")+
+        navItem("#/revenue","Revenue Tracker", activeKey==="revenue")+
         navItem("#/timesheets","Timesheets", activeKey==="timesheets")+
         navItem("#/invoices","Invoices", activeKey==="invoices")+
       '</div>'+
@@ -3071,6 +3125,432 @@ function renderShell(bodyHtml, activeKey){
   '<datalist id="recruiter-list">'+recruiterOptions+'</datalist>'+
   '<div class="toast-wrap" id="toast-wrap"></div>'+
   (quickView ? quickViewPanelHtml(quickView.type, quickView.id) : "");
+}
+
+/* ---------- Revenue Tracker (projected / invoiced / paid margin by recruiter and month) ---------- */
+
+var MARGIN_TYPES = ["% of doctor's pay", "All-inclusive client rate"];
+var INVOICE_FREQUENCIES = ["Weekly", "Fortnightly", "Monthly", "End of placement"];
+var BOOKING_ROUTES = ["TDN direct", "Split - TDN invoices the client", "Split - other agency invoices the client"];
+var DEFAULT_CLIENT_TERMS_DAYS = 30;
+// An invoice usually goes out a couple of days after the period ends (once the timesheet is approved).
+var INVOICE_LAG_DAYS = 2;
+// Placements with no end date are projected this many months ahead.
+var REVENUE_HORIZON_MONTHS = 6;
+var DOW_INDEX = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+
+function revNum(v){ var n = parseFloat(v); return isNaN(n) ? null : n; }
+function isoToUTC(iso){ var p = iso.split("-"); return Date.UTC(+p[0], +p[1]-1, +p[2]); }
+function utcToISO(t){ return new Date(t).toISOString().slice(0,10); }
+function isoAddDays(iso, n){ return utcToISO(isoToUTC(iso) + n*86400000); }
+function monthKey(iso){ return iso.slice(0,7); }
+function monthLabel(key){
+  var p = key.split("-");
+  return new Date(Date.UTC(+p[0], +p[1]-1, 1)).toLocaleDateString("en-AU", { month:"short", year:"numeric", timeZone:"UTC" });
+}
+function addMonthsKey(key, n){
+  var p = key.split("-"); var d = new Date(Date.UTC(+p[0], +p[1]-1+n, 1));
+  return d.toISOString().slice(0,7);
+}
+function lastDayOfMonthISO(iso){
+  var p = iso.split("-"); return utcToISO(Date.UTC(+p[0], +p[1], 0));
+}
+function isPermPlacement(p){ return p.placementType === "Permanent"; }
+function isCancelledPlacement(p){ return /^Cancelled/.test(p.status||""); }
+function isSplitRoute(p){ return /^Split/.test(p.bookingRoute||""); }
+
+// Margin per rate unit (per day / hour / week), ex GST.
+function placementMarginPerUnit(p){
+  var d = revNum(p.candidateRate), c = revNum(p.clientRate), pct = revNum(p.marginPercent);
+  if (p.marginType === MARGIN_TYPES[0]){
+    if (d === null || pct === null) return null;
+    return d * pct / 100;
+  }
+  if (c === null || d === null) return null;
+  return c - d;
+}
+function placementClientRatePerUnit(p){
+  var c = revNum(p.clientRate);
+  if (c !== null) return c;
+  var d = revNum(p.candidateRate), pct = revNum(p.marginPercent);
+  if (p.marginType === MARGIN_TYPES[0] && d !== null && pct !== null) return d * (1 + pct/100);
+  return null;
+}
+function placementHoursPerDay(p){
+  var h = revNum(p.hoursPerDay);
+  if (h) return h;
+  if (p.startTime && p.endTime){
+    var s = p.startTime.split(":"), e = p.endTime.split(":");
+    var diff = (+e[0]*60 + +e[1]) - (+s[0]*60 + +s[1]);
+    if (diff > 0) return diff / 60;
+  }
+  return 8;
+}
+function placementWorkDows(p){
+  var days = (p.daysOfWeek||[]).map(function(d){ return DOW_INDEX[d]; }).filter(function(x){ return x !== undefined; });
+  if (days.length) return days;
+  var n = revNum(p.daysPerWeek); if (!n) n = 5;
+  return [1,2,3,4,5,6,0].slice(0, Math.min(7, Math.max(1, Math.round(n))));
+}
+// Margin for one worked day, ex GST (null if the rates aren't filled in yet).
+function placementMarginPerDay(p){
+  var m = placementMarginPerUnit(p);
+  if (m === null) return null;
+  if (p.rateType === "Hourly Rate") return m * placementHoursPerDay(p);
+  if (p.rateType === "Weekly Rate") return m / placementWorkDows(p).length;
+  return m; // Daily Rate (and the default)
+}
+function placementTermsDays(p){
+  var t = revNum(p.clientPaymentTermsDays);
+  return t === null ? DEFAULT_CLIENT_TERMS_DAYS : t;
+}
+function placementInvoiceFrequency(p){
+  if (p.invoiceFrequency) return p.invoiceFrequency;
+  if (["Weekly","Fortnightly","Monthly"].indexOf(p.timesheetFrequency) >= 0) return p.timesheetFrequency;
+  return "Weekly";
+}
+function placementPermFee(p){
+  var s = revNum(p.permSalary), pct = revNum(p.permFeePercent);
+  if (s === null || pct === null) return null;
+  return s * pct / 100;
+}
+// Margin to TDN after any external agency split.
+function tdnShareOf(p, gross){
+  if (!isSplitRoute(p)) return gross;
+  var pct = revNum(p.tdnSplitPercent);
+  return gross * (pct === null ? 50 : pct) / 100;
+}
+// How TDN's share is divided between recruiters.
+function recruiterAllocation(p, amount){
+  var owner = p.recruiter || "Unassigned";
+  var second = p.secondRecruiterUserId ? findCrmUser(p.secondRecruiterUserId) : null;
+  var pct = revNum(p.secondRecruiterPercent);
+  if (second && pct){
+    return [{ name: owner, amount: amount * (100-pct)/100 }, { name: crmUserLabel(second), amount: amount * pct/100 }];
+  }
+  return [{ name: owner, amount: amount }];
+}
+// Margin contained in a real (sent / paid) TDN invoice, ex GST.
+function invoiceMargin(inv, p){
+  var sub = invoiceSubtotal(inv);
+  if (isPermPlacement(p) || p.paymentModel === "Hospital pays doctor directly") return sub; // invoice is our fee only
+  var m = placementMarginPerUnit(p), c = placementClientRatePerUnit(p);
+  if (m !== null && c) return sub * m / c;
+  return sub;
+}
+function placementAgencyInvoices(p){
+  return state.invoices.filter(function(i){ return i.placementId === p.id && i.type === "agency" && i.status !== "Draft"; });
+}
+function findTimesheetLocal(id){
+  for (var i=0;i<state.timesheets.length;i++){ if (state.timesheets[i].id === id) return state.timesheets[i]; }
+  return null;
+}
+
+// Every margin item for one placement: real invoices first, then projections for anything not yet invoiced.
+function placementRevenueItems(p){
+  var items = [], today = todayISO(), terms = placementTermsDays(p);
+  if (isCancelledPlacement(p)) return items;
+  var push = function(o){
+    o.placement = p;
+    o.tdn = tdnShareOf(p, o.gross);
+    o.alloc = recruiterAllocation(p, o.tdn);
+    o.month = monthKey(o.date);
+    items.push(o);
+  };
+  var coveredTo = "";
+  placementAgencyInvoices(p).forEach(function(inv){
+    var issue = inv.issueDate || (inv.sentAt ? utcToISO(inv.sentAt) : today);
+    var ts = inv.timesheetId ? findTimesheetLocal(inv.timesheetId) : null;
+    var covers = (ts && ts.periodEnd) || issue;
+    if (covers > coveredTo) coveredTo = covers;
+    var paid = inv.status === "Paid" || inv.paidAt;
+    var date = paid ? (inv.paidAt ? utcToISO(inv.paidAt) : (inv.dueDate || isoAddDays(issue, terms))) : (inv.dueDate || isoAddDays(issue, terms));
+    push({ label: (inv.invoiceNumber || "Invoice") + (ts ? " (" + fmtDate(ts.periodStart) + " - " + fmtDate(ts.periodEnd) + ")" : ""),
+      stage: paid ? "Paid" : (date < today ? "Overdue" : "Invoiced"), date: date, gross: invoiceMargin(inv, p), invoice: inv, invoiceDate: issue });
+  });
+
+  if (isPermPlacement(p)){
+    if (!items.length){
+      var fee = placementPermFee(p);
+      if (fee !== null && p.startDate){
+        push({ label: "Placement fee (" + (p.permFeePercent||"") + "% of salary)", stage: "Projected", projectedLate: p.startDate < today,
+          date: isoAddDays(p.startDate, terms), gross: fee, invoiceDate: p.startDate });
+      }
+    }
+    return items;
+  }
+
+  var perDay = placementMarginPerDay(p);
+  if (perDay === null || !p.startDate) return items;
+  var freq = placementInvoiceFrequency(p);
+  var end = p.endDate || lastDayOfMonthISO(addMonthsKey(monthKey(today), REVENUE_HORIZON_MONTHS) + "-01");
+  if (!p.endDate && freq === "End of placement") freq = "Monthly";
+  if (p.rateType === "Fixed Fee"){
+    var fixed = placementMarginPerUnit(p);
+    if (fixed !== null && end > coveredTo){
+      var inv0 = isoAddDays(end, INVOICE_LAG_DAYS);
+      push({ label: "Fixed fee", stage: "Projected", projectedLate: inv0 < today, date: isoAddDays(inv0, terms), gross: fixed, invoiceDate: inv0 });
+    }
+    return items;
+  }
+  var dows = {}; placementWorkDows(p).forEach(function(d){ dows[d] = true; });
+  var periods = {}, order = [];
+  for (var t = isoToUTC(p.startDate), endT = isoToUTC(end); t <= endT; t += 86400000){
+    var day = utcToISO(t);
+    if (!dows[new Date(t).getUTCDay()]) continue;
+    var pe;
+    if (freq === "Weekly"){ var dw = new Date(t).getUTCDay(); pe = isoAddDays(day, dw === 0 ? 0 : 7 - dw); }
+    else if (freq === "Fortnightly"){ var idx = Math.floor((t - isoToUTC(p.startDate)) / (14*86400000)); pe = isoAddDays(p.startDate, 14*(idx+1) - 1); }
+    else if (freq === "Monthly"){ pe = lastDayOfMonthISO(day); }
+    else { pe = end; }
+    if (pe > end) pe = end;
+    if (!periods[pe]){ periods[pe] = { start: day, end: pe, days: 0 }; order.push(pe); }
+    periods[pe].days++;
+  }
+  order.forEach(function(pe){
+    var per = periods[pe];
+    if (per.end <= coveredTo) return;
+    var invDate = isoAddDays(per.end, INVOICE_LAG_DAYS);
+    push({ label: fmtDate(per.start) + " - " + fmtDate(per.end) + " (" + per.days + " day" + (per.days===1?"":"s") + ")",
+      stage: "Projected", projectedLate: invDate < today, date: isoAddDays(invDate, terms), gross: perDay * per.days, invoiceDate: invDate });
+  });
+  return items;
+}
+function allRevenueItems(){
+  var out = [];
+  state.placements.forEach(function(p){ out = out.concat(placementRevenueItems(p)); });
+  return out;
+}
+function placementProjectedTotal(p){
+  return placementRevenueItems(p).reduce(function(s,i){ return s + i.tdn; }, 0);
+}
+function revenueRecruiters(items){
+  var seen = {}, out = [];
+  state.crmUsers.forEach(function(u){ var n = crmUserLabel(u); if (!seen[n]){ seen[n] = true; out.push(n); } });
+  items.forEach(function(i){ i.alloc.forEach(function(a){ if (!seen[a.name]){ seen[a.name] = true; out.push(a.name); } }); });
+  return out;
+}
+function revStageClass(stage){ return { Paid:"rev-paid", Invoiced:"rev-invoiced", Overdue:"rev-overdue", Projected:"rev-projected" }[stage] || ""; }
+function fmtMoney0(n){ return "$" + Math.round(n||0).toLocaleString("en-AU"); }
+
+function renderRevenueTracker(){
+  var rf = uiFilters.revenue;
+  var curMonth = monthKey(todayISO());
+  if (!rf.start) rf.start = addMonthsKey(curMonth, -2);
+  if (!rf.sel) rf.sel = curMonth;
+  var months = []; for (var i=0;i<rf.months;i++) months.push(addMonthsKey(rf.start, i));
+  var items = allRevenueItems();
+  var recruiters = revenueRecruiters(items);
+  var shown = rf.recruiter ? [rf.recruiter] : recruiters;
+
+  // grid[recruiter][month][stage] = amount
+  var grid = {}, monthTotals = {};
+  items.forEach(function(it){
+    it.alloc.forEach(function(a){
+      grid[a.name] = grid[a.name] || {};
+      var g = grid[a.name][it.month] = grid[a.name][it.month] || { Paid:0, Invoiced:0, Overdue:0, Projected:0, total:0 };
+      g[it.stage] += a.amount; g.total += a.amount;
+      if (!rf.recruiter || rf.recruiter === a.name){
+        var mt = monthTotals[it.month] = monthTotals[it.month] || { Paid:0, Invoiced:0, Overdue:0, Projected:0, total:0 };
+        mt[it.stage] += a.amount; mt.total += a.amount;
+      }
+    });
+  });
+  var mine = function(it){ return !rf.recruiter || it.alloc.some(function(a){ return a.name === rf.recruiter; }); };
+  var share = function(it){ return rf.recruiter ? it.alloc.filter(function(a){ return a.name === rf.recruiter; }).reduce(function(s,a){ return s+a.amount; },0) : it.tdn; };
+  var thisM = monthTotals[curMonth] || { total:0, Paid:0 };
+  var nextM = monthTotals[addMonthsKey(curMonth,1)] || { total:0 };
+  var overdue = items.filter(function(it){ return mine(it) && it.stage === "Overdue"; }).reduce(function(s,it){ return s+share(it); },0);
+  var next3 = 0; for (var k=1;k<=3;k++){ var mk = monthTotals[addMonthsKey(curMonth,k)]; if (mk) next3 += mk.total; }
+
+  var html = '<div class="page-head"><div><h1>Revenue Tracker</h1><div class="sub">Margin (ex GST) by the month it\'s expected to be paid</div></div>'+
+    '<button class="btn btn-primary" type="button" data-action="open-add-placement">+ New placement</button></div>';
+
+  html += '<div class="rev-controls">'+
+    '<button class="btn btn-sm" type="button" data-action="rev-shift" data-n="-3">&larr; Earlier</button>'+
+    '<button class="btn btn-sm" type="button" data-action="rev-today">This month</button>'+
+    '<button class="btn btn-sm" type="button" data-action="rev-shift" data-n="3">Later &rarr;</button>'+
+    '<label>Recruiter <select id="rev-recruiter"><option value="">All recruiters</option>'+
+      recruiters.map(function(r){ return '<option'+(r===rf.recruiter?" selected":"")+'>'+escapeHtml(r)+'</option>'; }).join("")+
+    '</select></label>'+
+    '<span class="rev-legend"><span class="rev-dot rev-paid"></span>Paid <span class="rev-dot rev-invoiced"></span>Invoiced <span class="rev-dot rev-overdue"></span>Overdue <span class="rev-dot rev-projected"></span>Projected</span>'+
+  '</div>';
+
+  html += '<div class="rev-tiles">'+
+    '<div class="rev-tile"><div class="rev-tile-label">'+monthLabel(curMonth)+'</div><div class="rev-tile-value">'+fmtMoney0(thisM.total)+'</div><div class="rev-tile-sub">'+fmtMoney0(thisM.Paid)+' received so far</div></div>'+
+    '<div class="rev-tile"><div class="rev-tile-label">'+monthLabel(addMonthsKey(curMonth,1))+'</div><div class="rev-tile-value">'+fmtMoney0(nextM.total)+'</div><div class="rev-tile-sub">expected</div></div>'+
+    '<div class="rev-tile"><div class="rev-tile-label">Next 3 months</div><div class="rev-tile-value">'+fmtMoney0(next3)+'</div><div class="rev-tile-sub">'+monthLabel(addMonthsKey(curMonth,1))+' - '+monthLabel(addMonthsKey(curMonth,3))+'</div></div>'+
+    '<div class="rev-tile'+(overdue?" rev-tile-alert":"")+'"><div class="rev-tile-label">Overdue</div><div class="rev-tile-value">'+fmtMoney0(overdue)+'</div><div class="rev-tile-sub">sent, past due, unpaid</div></div>'+
+  '</div>';
+
+  if (!state.placements.length){
+    html += '<div class="empty"><h3>No placements yet</h3><p>Add a placement with its rates, margin and invoicing frequency, and its margin will show here by the month it\'s expected to be paid.</p>'+
+      '<button class="btn btn-primary" type="button" data-action="open-add-placement">Add a placement</button></div>';
+    return html;
+  }
+
+  var cellHtml = function(g, m, who){
+    if (!g || !g.total) return '<td class="rev-cell" data-action="rev-select" data-month="'+m+'" data-recruiter="'+escapeHtml(who||"")+'"><span class="rev-zero">-</span></td>';
+    var parts = ["Paid","Invoiced","Overdue","Projected"].filter(function(s){ return g[s] > 0.5; }).map(function(s){
+      return '<span class="rev-part" title="'+s+'"><span class="rev-dot '+revStageClass(s)+'"></span>'+fmtMoney0(g[s])+'</span>';
+    }).join("");
+    return '<td class="rev-cell'+(m===rf.sel?" rev-sel":"")+'" data-action="rev-select" data-month="'+m+'" data-recruiter="'+escapeHtml(who||"")+'"><div class="rev-total">'+fmtMoney0(g.total)+'</div>'+(parts.indexOf("</span></span><span")>=0 || (g.total && parts) ? '<div class="rev-parts">'+parts+'</div>' : '')+'</td>';
+  };
+  html += '<div class="table-wrap rev-grid"><table><thead><tr><th>Recruiter</th>'+
+    months.map(function(m){ return '<th class="'+(m===curMonth?"rev-now":"")+'">'+monthLabel(m)+'</th>'; }).join("")+'<th>Total</th></tr></thead><tbody>';
+  shown.forEach(function(r){
+    var rowTotal = 0;
+    html += '<tr><td class="name">'+escapeHtml(r)+'</td>';
+    months.forEach(function(m){ var g = grid[r] && grid[r][m]; if (g) rowTotal += g.total; html += cellHtml(g, m, r); });
+    html += '<td class="rev-rowtotal">'+fmtMoney0(rowTotal)+'</td></tr>';
+  });
+  if (shown.length > 1){
+    var grand = 0;
+    html += '<tr class="rev-totalrow"><td class="name">Total</td>';
+    months.forEach(function(m){ var g = monthTotals[m]; if (g) grand += g.total; html += cellHtml(g, m, ""); });
+    html += '<td class="rev-rowtotal">'+fmtMoney0(grand)+'</td></tr>';
+  }
+  html += '</tbody></table></div>';
+
+  // What lands in the selected month
+  var sel = items.filter(function(it){ return it.month === rf.sel && mine(it); }).sort(function(a,b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  html += '<div class="rev-section-head"><h2>'+monthLabel(rf.sel)+(rf.recruiter?(" &middot; "+escapeHtml(rf.recruiter)):"")+'</h2><span class="sub">'+sel.length+' item'+(sel.length===1?"":"s")+' &middot; '+fmtMoney0(sel.reduce(function(s,it){ return s+share(it); },0))+'</span></div>';
+  if (!sel.length){
+    html += '<div class="empty" style="padding:18px;"><p>Nothing expected to be paid in '+monthLabel(rf.sel)+'. Click a month above to see what lands in it.</p></div>';
+  } else {
+    html += '<div class="table-wrap"><table><thead><tr><th>Placement</th><th>Recruiter</th><th>Period / item</th><th>Stage</th><th>Invoice date</th><th>Expected paid</th><th class="num">Margin</th></tr></thead><tbody>';
+    sel.forEach(function(it){
+      var p = it.placement, doc = findDoctor(p.doctorId), hosp = findHospital(p.hospitalId);
+      var stage = it.stage === "Projected" && it.projectedLate ? '<span class="rev-badge rev-projected">Not invoiced yet</span>' : '<span class="rev-badge '+revStageClass(it.stage)+'">'+it.stage+'</span>';
+      html += '<tr data-action="open-placement" data-id="'+p.id+'">'+
+        '<td class="name"><a href="#/placements/'+p.id+'">'+escapeHtml(doc?doc.name:"-")+'</a><div class="folder-last-note">'+escapeHtml(hosp?hosp.name:"")+(isSplitRoute(p)?" &middot; split with "+escapeHtml(p.splitAgencyName||"agency"):"")+'</div></td>'+
+        '<td>'+escapeHtml(it.alloc.map(function(a){ return a.name; }).join(", "))+'</td>'+
+        '<td>'+escapeHtml(it.label)+'</td>'+
+        '<td>'+stage+'</td>'+
+        '<td>'+(it.invoiceDate?fmtDate(it.invoiceDate):"-")+'</td>'+
+        '<td>'+(it.stage==="Paid"?"Paid ":"")+fmtDate(it.date)+'</td>'+
+        '<td class="num">'+fmtMoney0(share(it))+'</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // Bookings list
+  var plist = state.placements.filter(function(p){ return !rf.recruiter || placementRevenueItems(p).some(mine) || p.recruiter === rf.recruiter; })
+    .slice().sort(function(a,b){ return (b.startDate||"") < (a.startDate||"") ? -1 : 1; });
+  html += '<div class="rev-section-head"><h2>Bookings</h2><span class="sub">'+plist.length+' placement'+(plist.length===1?"":"s")+'</span></div>';
+  html += '<div class="table-wrap"><table><thead><tr><th>Doctor</th><th>Client</th><th>Type</th><th>Recruiter</th><th>Dates</th><th>Rates</th><th>Margin</th><th>Invoicing</th><th>Route</th><th class="num">Total to TDN</th><th>Status</th></tr></thead><tbody>';
+  plist.forEach(function(p){
+    var doc = findDoctor(p.doctorId), hosp = findHospital(p.hospitalId);
+    var unit = p.rateType === "Hourly Rate" ? "/hr" : p.rateType === "Weekly Rate" ? "/wk" : p.rateType === "Fixed Fee" ? "" : "/day";
+    var rates = isPermPlacement(p) ? (p.permSalary ? fmtMoney0(revNum(p.permSalary))+' salary' : "-") :
+      ((p.candidateRate ? 'Dr '+fmtMoney0(revNum(p.candidateRate))+unit : "") + (placementClientRatePerUnit(p) !== null ? '<div class="folder-last-note">Client '+fmtMoney0(placementClientRatePerUnit(p))+unit+'</div>' : ""));
+    var mu = placementMarginPerUnit(p);
+    var marginTxt = isPermPlacement(p) ? (p.permFeePercent ? escapeHtml(p.permFeePercent)+'% fee' : "-") :
+      (mu === null ? '<span class="due-chip over">Rates missing</span>' : fmtMoney0(mu)+unit+(p.marginType===MARGIN_TYPES[0] && p.marginPercent ? '<div class="folder-last-note">'+escapeHtml(p.marginPercent)+'% of pay</div>' : '<div class="folder-last-note">All-inclusive</div>'));
+    html += '<tr data-action="open-placement" data-id="'+p.id+'">'+
+      '<td class="name">'+escapeHtml(doc?doc.name:"-")+'</td>'+
+      '<td>'+escapeHtml(hosp?hosp.name:"-")+'</td>'+
+      '<td>'+escapeHtml(p.placementType||"-")+'</td>'+
+      '<td>'+escapeHtml(p.recruiter||"-")+'</td>'+
+      '<td>'+(p.startDate?fmtDate(p.startDate):"-")+(isPermPlacement(p)?"":'<div class="folder-last-note">to '+(p.endDate?fmtDate(p.endDate):"ongoing")+'</div>')+'</td>'+
+      '<td>'+rates+'</td>'+
+      '<td>'+marginTxt+'</td>'+
+      '<td>'+(isPermPlacement(p)?"One-off":escapeHtml(placementInvoiceFrequency(p)))+'<div class="folder-last-note">'+placementTermsDays(p)+'-day terms</div></td>'+
+      '<td>'+(isSplitRoute(p)?escapeHtml((p.splitAgencyName||"Agency")+" ("+(p.tdnSplitPercent||50)+"% to TDN)"):"Direct")+'</td>'+
+      '<td class="num">'+fmtMoney0(placementProjectedTotal(p))+(p.endDate||isPermPlacement(p)?"":'<div class="folder-last-note">next '+REVENUE_HORIZON_MONTHS+' mths</div>')+'</td>'+
+      '<td>'+statusBadgeHtml(p.status)+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  html += '<p class="rev-footnote">Projected amounts assume invoices go out '+INVOICE_LAG_DAYS+' days after each period ends and are paid on the client\'s payment terms (30 days unless set on the placement). Once an invoice is sent or paid, the real amount and date replace the projection. Placements with no end date are projected '+REVENUE_HORIZON_MONTHS+' months ahead.</p>';
+  return html;
+}
+
+// Revenue panel on a placement's Details tab.
+function placementRevenuePanelHtml(p){
+  var items = placementRevenueItems(p);
+  var total = items.reduce(function(s,i){ return s+i.tdn; }, 0);
+  var html = '<div class="panel" style="margin-top:16px;">'+panelHead("Revenue", p.id);
+  if (!items.length){
+    return html + '<p class="sub" style="margin:0;">'+(isPermPlacement(p) ? "Add the salary and fee % to project the placement fee." : "Add the doctor rate and margin to see projected margin.")+'</p></div>';
+  }
+  html += '<div class="field-grid">'+
+    fieldItemHtml("Total margin to TDN", fmtMoney(total), null)+
+    (isPermPlacement(p) ? "" : fieldItemHtml("Margin per day", fmtMoney(placementMarginPerDay(p)), null))+
+  '</div><div class="rev-mini">'+
+  items.slice(0, 12).map(function(it){
+    return '<div class="rev-mini-row"><span class="rev-dot '+revStageClass(it.stage)+'"></span><span class="rev-mini-label">'+escapeHtml(it.label)+'</span><span class="rev-mini-date">'+fmtDate(it.date)+'</span><span class="rev-mini-amt">'+fmtMoney0(it.tdn)+'</span></div>';
+  }).join("")+
+  (items.length > 12 ? '<div class="folder-last-note">+ '+(items.length-12)+' more in the Revenue Tracker</div>' : '')+
+  '</div></div>';
+  return html;
+}
+
+function placementRevenueFormHtml(p){
+  var perm = p.placementType === "Permanent";
+  var terms = (p.clientPaymentTermsDays !== undefined && p.clientPaymentTermsDays !== "") ? p.clientPaymentTermsDays : DEFAULT_CLIENT_TERMS_DAYS;
+  return '<div class="form-section-title">Margin &amp; invoicing (Revenue Tracker)</div>'+
+    '<div class="rev-form-locum"'+(perm?" hidden":"")+'>'+
+      '<div class="two-col">'+
+        '<div class="form-row"><label>How is margin worked out?</label><select name="marginType" id="pf-margin-type">'+selectOptionsHtml(MARGIN_TYPES, p.marginType || MARGIN_TYPES[0])+'</select></div>'+
+        '<div class="form-row rev-pct-row"'+(p.marginType===MARGIN_TYPES[1]?" hidden":"")+'><label>Margin % of doctor\'s pay</label><input type="number" step="0.01" min="0" name="marginPercent" value="'+escapeHtml(p.marginPercent)+'" placeholder="e.g. 15" /></div>'+
+      '</div>'+
+      '<div class="two-col">'+
+        '<div class="form-row"><label>Invoicing frequency</label><select name="invoiceFrequency">'+selectOptionsHtml(INVOICE_FREQUENCIES, p.invoiceFrequency, "Same as timesheets")+'</select></div>'+
+        '<div class="form-row"><label>Hours per day (hourly rates)</label><input type="number" step="0.25" min="0" name="hoursPerDay" value="'+escapeHtml(p.hoursPerDay)+'" placeholder="Worked out from start/end time" /></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="rev-form-perm"'+(perm?"":" hidden")+'>'+
+      '<div class="two-col">'+
+        '<div class="form-row"><label>Doctor\'s annual salary</label><input type="number" step="1" min="0" name="permSalary" value="'+escapeHtml(p.permSalary)+'" /></div>'+
+        '<div class="form-row"><label>Placement fee % of salary</label><input type="number" step="0.01" min="0" name="permFeePercent" value="'+escapeHtml(p.permFeePercent)+'" placeholder="e.g. 20" /></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="two-col">'+
+      '<div class="form-row"><label>Client payment terms (days)</label><input type="number" step="1" min="0" name="clientPaymentTermsDays" value="'+escapeHtml(terms)+'" /><div style="font-size:12px;color:var(--ink-400);margin-top:4px;">When we expect to be paid, used for projections. Most hospitals pay on 30 days.</div></div>'+
+      '<div class="form-row"><label>Margin preview</label><div class="note-box" id="pf-rev-preview">'+placementPreviewText(p)+'</div></div>'+
+    '</div>'+
+    '<div class="form-section-title">Booking route &amp; recruiter split</div>'+
+    '<div class="two-col">'+
+      '<div class="form-row"><label>How is this booking processed?</label><select name="bookingRoute" id="pf-booking-route">'+selectOptionsHtml(BOOKING_ROUTES, p.bookingRoute || BOOKING_ROUTES[0])+'</select></div>'+
+      '<div class="form-row rev-split-row"'+(isSplitRoute(p)?"":" hidden")+'><label>External agency</label><input type="text" name="splitAgencyName" value="'+escapeHtml(p.splitAgencyName)+'" placeholder="Agency name" /></div>'+
+    '</div>'+
+    '<div class="two-col rev-split-row"'+(isSplitRoute(p)?"":" hidden")+'>'+
+      '<div class="form-row"><label>TDN\'s share of the margin (%)</label><input type="number" step="0.01" min="0" max="100" name="tdnSplitPercent" value="'+escapeHtml(p.tdnSplitPercent || "50")+'" /></div>'+
+      '<div class="form-row"></div>'+
+    '</div>'+
+    '<div class="two-col">'+
+      '<div class="form-row"><label>Second recruiter (internal split)</label><select name="secondRecruiterUserId"><option value="">None</option>'+
+        state.crmUsers.map(function(u){ return '<option value="'+escapeHtml(u.id)+'" '+(u.id===p.secondRecruiterUserId?"selected":"")+'>'+escapeHtml(crmUserLabel(u))+'</option>'; }).join("")+
+      '</select></div>'+
+      '<div class="form-row"><label>Second recruiter\'s share (%)</label><input type="number" step="1" min="0" max="100" name="secondRecruiterPercent" value="'+escapeHtml(p.secondRecruiterPercent)+'" placeholder="e.g. 50" /></div>'+
+    '</div>';
+}
+function placementPreviewText(p){
+  if (p.placementType === "Permanent"){
+    var fee = placementPermFee(p);
+    return fee === null ? "Add salary and fee %." : "Placement fee " + fmtMoney(fee) + " ex GST";
+  }
+  var m = placementMarginPerUnit(p), c = placementClientRatePerUnit(p), perDay = placementMarginPerDay(p);
+  if (m === null) return "Add the doctor's rate and margin.";
+  var unit = p.rateType === "Hourly Rate" ? "hour" : p.rateType === "Weekly Rate" ? "week" : p.rateType === "Fixed Fee" ? "placement" : "day";
+  var share = isSplitRoute(p) ? " &middot; TDN share " + fmtMoney(tdnShareOf(p, m)) : "";
+  return "Margin " + fmtMoney(m) + " per " + unit + (c!==null ? " &middot; client charge " + fmtMoney(c) : "") +
+    (perDay !== null && unit !== "day" && unit !== "placement" ? " &middot; " + fmtMoney(perDay) + " per day" : "") + share;
+}
+// Live preview + show/hide while editing the placement form.
+function refreshPlacementFormRevenue(form){
+  if (!form) return;
+  var get = function(n){ var el = form.querySelector('[name="'+n+'"]'); return el ? el.value : ""; };
+  var p = { placementType:get("placementType"), rateType:get("rateType"), clientRate:get("clientRate"), candidateRate:get("candidateRate"),
+    marginType:get("marginType"), marginPercent:get("marginPercent"), hoursPerDay:get("hoursPerDay"), startTime:get("startTime"), endTime:get("endTime"),
+    daysPerWeek:get("daysPerWeek"), daysOfWeek: Array.prototype.map.call(form.querySelectorAll('[name="daysOfWeek"]:checked'), function(e){ return e.value; }),
+    permSalary:get("permSalary"), permFeePercent:get("permFeePercent"), bookingRoute:get("bookingRoute"), tdnSplitPercent:get("tdnSplitPercent") };
+  var perm = p.placementType === "Permanent";
+  form.querySelectorAll(".rev-form-locum").forEach(function(el){ el.hidden = perm; });
+  form.querySelectorAll(".rev-form-perm").forEach(function(el){ el.hidden = !perm; });
+  form.querySelectorAll(".rev-pct-row").forEach(function(el){ el.hidden = p.marginType === MARGIN_TYPES[1]; });
+  form.querySelectorAll(".rev-split-row").forEach(function(el){ el.hidden = !isSplitRoute(p); });
+  var pv = form.querySelector("#pf-rev-preview"); if (pv) pv.innerHTML = placementPreviewText(p);
 }
 
 /* ---------- Folders (groups of doctors, e.g. "Active doctors", "RANZCP Congress 2026") ---------- */
@@ -4864,9 +5344,14 @@ function renderPlacementDetailsTab(p, doc, hosp){
     fieldItemHtml("Client rate", fmtMoney(p.clientRate), p.id)+
     fieldItemHtml("Candidate rate", fmtMoney(p.candidateRate), p.id)+
     fieldItemHtml("On cost", fmtMoney(p.onCost), p.id)+
+    fieldItemHtml("Margin type", isPermPlacement(p) ? "Placement fee" : (p.marginType || MARGIN_TYPES[1]) + (p.marginType===MARGIN_TYPES[0] && p.marginPercent ? " ("+p.marginPercent+"%)" : ""), p.id)+
     fieldItemHtml("Net margin", fmtMoney(netMargin), null)+
     fieldItemHtml("Weekly margin", fmtMoney(weeklyMargin), null)+
+    (isPermPlacement(p) ? fieldItemHtml("Salary", fmtMoney(p.permSalary), p.id)+fieldItemHtml("Fee", p.permFeePercent ? p.permFeePercent+"% ("+fmtMoney(placementPermFee(p))+")" : "", p.id) : fieldItemHtml("Invoicing", placementInvoiceFrequency(p), p.id))+
+    fieldItemHtml("Client terms", placementTermsDays(p)+" days", p.id)+
+    fieldItemHtml("Booking route", (p.bookingRoute || BOOKING_ROUTES[0]) + (isSplitRoute(p) ? " - " + (p.splitAgencyName||"agency") + ", " + (p.tdnSplitPercent||50) + "% to TDN" : ""), p.id, true)+
   '</div></div>';
+  col2 += placementRevenuePanelHtml(p);
   col2 += '<div class="panel" style="margin-top:16px;">'+panelHead("Payroll and Billing Details", p.id)+'<div class="field-grid">'+
     fieldItemHtml("Invoicing contact", p.billingContact, p.id)+
     fieldItemHtml("Invoicing email", p.billingEmail, p.id)+
@@ -4885,7 +5370,8 @@ function renderPlacementDetailsTab(p, doc, hosp){
     fieldItemHtml("Payment model", p.paymentModel, p.id)+
   '</div></div>';
   col2 += '<div class="panel" style="margin-top:16px;">'+panelHead("Recruiters", p.id)+
-    (p.recruiter ? '<div class="recruiter-row"><span class="init-badge">'+escapeHtml(initials(p.recruiter))+'</span>'+escapeHtml(p.recruiter)+'<span class="badge-owner">OWNER</span></div>' : '<div class="empty" style="border:none;background:none;padding:6px 0;"><p>No recruiter assigned.</p></div>')+
+    (p.recruiter ? '<div class="recruiter-row"><span class="init-badge">'+escapeHtml(initials(p.recruiter))+'</span>'+escapeHtml(p.recruiter)+'<span class="badge-owner">OWNER</span>'+(p.secondRecruiterUserId && p.secondRecruiterPercent ? ' <span class="folder-last-note">'+(100-parseFloat(p.secondRecruiterPercent))+'%</span>' : '')+'</div>'+
+      (p.secondRecruiterUserId && findCrmUser(p.secondRecruiterUserId) ? '<div class="recruiter-row"><span class="init-badge">'+escapeHtml(initials(crmUserLabel(findCrmUser(p.secondRecruiterUserId))))+'</span>'+escapeHtml(crmUserLabel(findCrmUser(p.secondRecruiterUserId)))+' <span class="folder-last-note">'+escapeHtml(p.secondRecruiterPercent||"")+'%</span></div>' : '') : '<div class="empty" style="border:none;background:none;padding:6px 0;"><p>No recruiter assigned.</p></div>')+
   '</div>';
   col2 += '<div class="panel" style="margin-top:16px;">'+panelHead("Split Fees", p.id)+
     ((p.splitFees && p.splitFees.length) ? '<div class="tags">'+p.splitFees.map(function(s){return '<span class="tag">'+escapeHtml(s)+'</span>';}).join("")+'</div>' : '<button type="button" class="link-add" data-action="open-edit-placement" data-id="'+p.id+'">+ Add</button>')+
@@ -5666,11 +6152,11 @@ function addPlacementModalHtml(existing, prefill){
       '<div class="form-row"><label>Days per week</label><input type="number" min="0" max="7" step="1" name="daysPerWeek" value="'+escapeHtml(p.daysPerWeek)+'" /></div>'+
     '</div>'+
     '<div class="two-col">'+
-      '<div class="form-row"><label>Client rate</label><input type="number" step="0.01" name="clientRate" value="'+escapeHtml(p.clientRate)+'" /></div>'+
-      '<div class="form-row"><label>Candidate rate</label><input type="number" step="0.01" name="candidateRate" value="'+escapeHtml(p.candidateRate)+'" /></div>'+
+      '<div class="form-row"><label>Client rate (ex GST)</label><input type="number" step="0.01" name="clientRate" value="'+escapeHtml(p.clientRate)+'" placeholder="Worked out automatically for % margin" /></div>'+
+      '<div class="form-row"><label>Doctor rate (candidate)</label><input type="number" step="0.01" name="candidateRate" value="'+escapeHtml(p.candidateRate)+'" /></div>'+
     '</div>'+
     '<div class="form-row"><label>On cost</label><input type="number" step="0.01" name="onCost" value="'+escapeHtml(p.onCost)+'" /></div>'+
-    '<div class="note-box" style="margin-bottom:12px;">Net margin and weekly margin are calculated automatically from the rates above.</div>'+
+    placementRevenueFormHtml(p)+
 
     '<div class="form-section-title">Payroll &amp; billing details</div>'+
     '<div class="two-col">'+
@@ -5918,6 +6404,7 @@ function render(){
   else if (key === "jobs"){ body = renderJobsList(); }
   else if (key === "placements" && route[1]){ body = renderPlacementDetail(route[1], route[2]); }
   else if (key === "placements"){ body = renderPlacementsList(); }
+  else if (key === "revenue"){ body = renderRevenueTracker(); }
   else if (key === "timesheets" && route[1]){ body = renderTimesheetDetail(route[1]); }
   else if (key === "timesheets"){ body = renderTimesheetsList(); }
   else if (key === "invoices" && route[1]){ body = renderInvoiceDetail(route[1]); }
@@ -6256,6 +6743,14 @@ document.addEventListener("click", function(e){
   else if (action === "quick-view-hospital"){ quickView = {type:"hospital", id:actEl.getAttribute("data-id")}; render(); }
   else if (action === "quick-view-client"){ quickView = {type:"client", id:actEl.getAttribute("data-id")}; render(); }
   else if (action === "close-quick-view"){ quickView = null; render(); }
+  else if (action === "rev-shift"){ uiFilters.revenue.start = addMonthsKey(uiFilters.revenue.start || monthKey(todayISO()), parseInt(actEl.getAttribute("data-n"),10)||0); render(); }
+  else if (action === "rev-today"){ uiFilters.revenue.start = addMonthsKey(monthKey(todayISO()), -2); uiFilters.revenue.sel = monthKey(todayISO()); render(); }
+  else if (action === "rev-select"){
+    uiFilters.revenue.sel = actEl.getAttribute("data-month");
+    render();
+    var revHead = document.querySelector(".rev-section-head");
+    if (revHead) revHead.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
   else if (action === "qv-followup-in"){
     var qvForm = actEl.closest("form");
     var qvDate = qvForm ? qvForm.querySelector("input[name='taskDueDate']") : null;
@@ -6460,6 +6955,10 @@ document.addEventListener("change", function(e){
     }
     return;
   }
+  if (e.target.id === "rev-recruiter"){ uiFilters.revenue.recruiter = e.target.value; render(); return; }
+  if (e.target.closest && e.target.closest('form[data-action="submit-add-placement"], form[data-action="submit-edit-placement"]')){
+    refreshPlacementFormRevenue(e.target.closest("form"));
+  }
   if (e.target.id === "folder-sort"){ uiFilters.folder.sort = e.target.value; render(); return; }
   if (e.target.id === "bulk-folder-select"){
     var bfNewRow = document.getElementById("bulk-folder-new-row");
@@ -6661,6 +7160,9 @@ document.addEventListener("paste", function(e){
 });
 
 document.addEventListener("input", function(e){
+  if (e.target.closest && e.target.closest('form[data-action="submit-add-placement"], form[data-action="submit-edit-placement"]')){
+    refreshPlacementFormRevenue(e.target.closest("form"));
+  }
   if (e.target.id === "folder-add-search"){
     var fasBox = document.getElementById("folder-add-results");
     if (fasBox) fasBox.innerHTML = folderAddResultsHtml(e.target.getAttribute("data-folder"), e.target.value);
