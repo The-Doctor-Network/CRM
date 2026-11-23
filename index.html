@@ -3236,7 +3236,8 @@ function xeroSettingsHtml(){
     }).join("");
   };
   var have = {}; o.accounts.forEach(function(a){ have[String(a.code)] = true; });
-  var missing = XERO_SUGGESTED_ACCOUNTS.filter(function(a){ return !have[a.code]; });
+  // Only revenue accounts come back from Xero here, so only check the revenue suggestions.
+  var missing = XERO_SUGGESTED_ACCOUNTS.filter(function(a){ return a.type === "REVENUE" && !have[a.code]; });
   html += '<h3 class="xero-sub">Revenue accounts for CRM invoices</h3>';
   if (missing.length){
     html += '<div class="note-box" style="margin-bottom:12px;">Suggested accounts not in Xero yet: '+missing.map(function(a){ return escapeHtml(a.code+" "+a.name); }).join(", ")+'. '+
