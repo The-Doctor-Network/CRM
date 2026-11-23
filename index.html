@@ -3207,6 +3207,7 @@ function placementTermsDays(p){
 function placementInvoiceFrequency(p){
   if (p.invoiceFrequency) return p.invoiceFrequency;
   if (["Weekly","Fortnightly","Monthly"].indexOf(p.timesheetFrequency) >= 0) return p.timesheetFrequency;
+  if (p.timesheetFrequency === "Custom" && revNum(p.timesheetFrequencyCustomDays)) return "Every " + Math.round(revNum(p.timesheetFrequencyCustomDays)) + " days";
   return "Weekly";
 }
 function placementPermFee(p){
@@ -3302,6 +3303,7 @@ function placementRevenueItems(p){
     if (freq === "Weekly"){ var dw = new Date(t).getUTCDay(); pe = isoAddDays(day, dw === 0 ? 0 : 7 - dw); }
     else if (freq === "Fortnightly"){ var idx = Math.floor((t - isoToUTC(p.startDate)) / (14*86400000)); pe = isoAddDays(p.startDate, 14*(idx+1) - 1); }
     else if (freq === "Monthly"){ pe = lastDayOfMonthISO(day); }
+    else if (/^Every \d+ days$/.test(freq)){ var nd = parseInt(freq.slice(6),10); var ci = Math.floor((t - isoToUTC(p.startDate)) / (nd*86400000)); pe = isoAddDays(p.startDate, nd*(ci+1) - 1); }
     else { pe = end; }
     if (pe > end) pe = end;
     if (!periods[pe]){ periods[pe] = { start: day, end: pe, days: 0 }; order.push(pe); }
@@ -3495,7 +3497,7 @@ function placementRevenueFormHtml(p){
         '<div class="form-row rev-pct-row"'+(p.marginType===MARGIN_TYPES[1]?" hidden":"")+'><label>Margin % of doctor\'s pay</label><input type="number" step="0.01" min="0" name="marginPercent" value="'+escapeHtml(p.marginPercent)+'" placeholder="e.g. 15" /></div>'+
       '</div>'+
       '<div class="two-col">'+
-        '<div class="form-row"><label>Invoicing frequency</label><select name="invoiceFrequency">'+selectOptionsHtml(INVOICE_FREQUENCIES, p.invoiceFrequency, "Same as timesheets")+'</select></div>'+
+        '<div class="form-row"><label>Invoicing frequency</label><select name="invoiceFrequency">'+selectOptionsHtml(INVOICE_FREQUENCIES, p.invoiceFrequency, "Same as timesheet frequency")+'</select></div>'+
         '<div class="form-row"><label>Hours per day (hourly rates)</label><input type="number" step="0.25" min="0" name="hoursPerDay" value="'+escapeHtml(p.hoursPerDay)+'" placeholder="Worked out from start/end time" /></div>'+
       '</div>'+
     '</div>'+
