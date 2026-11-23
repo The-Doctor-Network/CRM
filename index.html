@@ -773,7 +773,7 @@ var dataLoaded = false;   // doctors/hospitals/clients/notes/tasks fetched from 
 var dataLoading = false;
 var authError = "";
 
-var JOB_STATUSES = ["Open","On Hold","Filled","Cancelled"];
+var JOB_STATUSES = ["Open","On Hold","Filled","Closed","Cancelled"];
 var PLACEMENT_STATUSES = ["Upcoming","Active","Completed","Cancelled Placement - Client","Cancelled Placement - Candidate"];
 var RATE_TYPES = ["Daily Rate","Hourly Rate","Weekly Rate","Fixed Fee"];
 var PLACEMENT_TYPES = ["Contract","Locum","Permanent","Fixed Term"];
@@ -915,7 +915,7 @@ function credentialCategoryStatus(docs){
 var uiFilters = {
   doctors: { name:"", mobile:"", specialty:"", subSpecialty:"", location:"", email:"", position:"", recruiter:"", source:"", sortDir:"asc", page:1 },
   hospitals: { name:"", contact:"", location:"", recruiter:"", type:"", specialty:"", subSpecialty:"", page:1 },
-  jobs: { title:"", hospital:"", specialty:"", location:"", status:"all", recruiter:"" },
+  jobs: { title:"", hospital:"", specialty:"", location:"", status:"Open", recruiter:"", source:"all", limit:100 },
   placements: { doctor:"", hospital:"", status:"all" },
   clients: { name:"", jobTitle:"", specialty:"", subSpecialty:"", hospital:"", hospitalType:"", location:"", email:"", recruiter:"", sortDir:"asc", page:1 },
   invoices: { invoiceNumber:"", type:"", candidate:"", hospital:"", status:"", sortDir:"desc", page:1 },
@@ -1145,7 +1145,7 @@ function badgeHtml(label, cls){
 }
 function statusBadgeHtml(status){
   var map = {
-    "Open":"teal","On Hold":"amberlight","Filled":"green","Cancelled":"rust",
+    "Open":"teal","On Hold":"amberlight","Filled":"green","Closed":"neutral","Cancelled":"rust",
     "Active":"green","Upcoming":"teal","Completed":"neutral",
     "Cancelled Placement - Client":"green","Cancelled Placement - Candidate":"rust",
     "Draft":"neutral","Submitted":"teal","Approved":"green","Changes requested":"amberlight",
@@ -1777,7 +1777,8 @@ function jobToRow(j){
     sub_specialty: j.subSpecialty||null, job_type: j.jobType||null, description: j.description||null,
     start_date: strOrNull(j.startDate), end_date: strOrNull(j.endDate),
     city: j.city||null, region: j.region||null, status: j.status||null, recruiter: j.recruiter||null,
-    recruiter_user_id: j.recruiterUserId||null,
+    recruiter_user_id: j.recruiterUserId||null, rate: j.rate||null,
+    source: j.source||null, source_ref: j.sourceRef||null,
     date_opened: strOrNull(j.dateOpened), created_at: new Date(j.createdAt||Date.now()).toISOString()
   };
 }
@@ -1787,7 +1788,8 @@ function rowToJob(r){
     subSpecialty: r.sub_specialty||"", jobType: r.job_type||"", description: r.description||"",
     startDate: r.start_date||"", endDate: r.end_date||"",
     city: r.city||"", region: r.region||"", status: r.status||"Open", recruiter: r.recruiter||"",
-    recruiterUserId: r.recruiter_user_id||"",
+    recruiterUserId: r.recruiter_user_id||"", rate: r.rate||"",
+    source: r.source||"", sourceRef: r.source_ref||"",
     dateOpened: r.date_opened||"", createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now()
   };
 }
@@ -2026,11 +2028,17 @@ function initAuth(){
   });
 }
 
-function sbFetchAll(table){
+function jobsLoadCutoffISO(){
+  var d = new Date(); d.setFullYear(d.getFullYear() - 1);
+  return d.toISOString();
+}
+function sbFetchAll(table, modify){
   var pageSize = 1000;
   var all = [];
   function fetchPage(from){
-    return sb.from(table).select("*").range(from, from + pageSize - 1).then(function(res){
+    var q = sb.from(table).select("*");
+    if (modify) q = modify(q);
+    return q.order("id").range(from, from + pageSize - 1).then(function(res){
       if (res.error) throw res.error;
       var rows = res.data || [];
       all = all.concat(rows);
@@ -2052,7 +2060,10 @@ function loadInitialData(){
     sbFetchAll("clients"),
     sbFetchAll("notes"),
     sbFetchAll("tasks"),
-    sbFetchAll("jobs"),
+    // Jobs: everything still live (Open / On Hold), plus anything created in the last 12 months.
+    // Old filled/closed jobs stay in the database but aren't downloaded at login, so the CRM
+    // stays quick to open as the emailed-jobs feed adds hundreds of roles over time.
+    sbFetchAll("jobs", function(q){ return q.or("status.in.(Open,On Hold),created_at.gte." + jobsLoadCutoffISO()); }),
     sbFetchAll("placements"),
     sbFetchAll("timesheets"),
     sbFetchAll("invoices"),
@@ -2385,7 +2396,7 @@ function addJob(data){
     subSpecialty: data.subSpecialty, jobType: data.jobType, description: data.description,
     startDate: data.startDate, endDate: data.endDate,
     city: data.city, region: data.region, status: data.status || "Open", recruiter: data.recruiter,
-    recruiterUserId: data.recruiterUserId,
+    recruiterUserId: data.recruiterUserId, rate: data.rate,
     dateOpened: data.dateOpened || todayISO(), createdAt: Date.now()
   };
   state.jobs.push(j);
@@ -2398,7 +2409,7 @@ function updateJob(id, data){
   j.subSpecialty=data.subSpecialty; j.jobType=data.jobType; j.description=data.description;
   j.startDate=data.startDate; j.endDate=data.endDate;
   j.city=data.city; j.region=data.region; j.status=data.status; j.recruiter=data.recruiter; j.dateOpened=data.dateOpened;
-  j.recruiterUserId=data.recruiterUserId;
+  j.recruiterUserId=data.recruiterUserId; j.rate=data.rate;
   sbUpdate("jobs", id, jobToRow(j));
 }
 var PLACEMENT_FIELD_KEYS = [
@@ -5213,7 +5224,9 @@ function addCampaignRecipientModalHtml(campaignId){
 
 function renderJobsList(){
   var f = uiFilters.jobs;
-  var html = '<div class="page-head"><div><h1>Jobs</h1><div class="sub">'+state.jobs.length+' total</div></div>'+
+  var openCount = state.jobs.filter(function(j){ return j.status === "Open"; }).length;
+  var emailCount = state.jobs.filter(function(j){ return j.status === "Open" && j.source === "Email alert"; }).length;
+  var html = '<div class="page-head"><div><h1>Jobs</h1><div class="sub">'+openCount+' open'+(emailCount ? ' ('+emailCount+' from email alerts)' : '')+' &middot; '+state.jobs.length+' loaded</div></div>'+
     '<button class="btn btn-primary" data-action="open-add-job" type="button">+ New job</button></div>';
 
   if (state.jobs.length === 0){
@@ -5230,16 +5243,31 @@ function renderJobsList(){
       (!f.specialty || (j.specialty||"").toLowerCase().indexOf(f.specialty.toLowerCase())>=0) &&
       (!f.location || loc.indexOf(f.location.toLowerCase())>=0) &&
       (f.status === "all" || j.status === f.status) &&
+      (f.source === "all" || (f.source === "email" ? j.source === "Email alert" : j.source !== "Email alert")) &&
       (!f.recruiter || (j.recruiter||"").toLowerCase().indexOf(f.recruiter.toLowerCase())>=0);
-  }).sort(function(a,b){ return (b.dateOpened||"") < (a.dateOpened||"") ? -1 : 1; });
+  }).sort(function(a,b){
+    var da = a.dateOpened||"", db = b.dateOpened||"";
+    if (da !== db) return db < da ? -1 : 1;
+    return (b.createdAt||0) - (a.createdAt||0);
+  });
+  var limit = f.limit || 100;
+  var shown = list.slice(0, limit);
 
   html += '<div class="pill-filter" style="margin-bottom:14px;" id="job-status-filter">'+
     '<button type="button" data-status="all" class="'+(f.status==="all"?"active":"")+'">All</button>'+
     JOB_STATUSES.map(function(s){ return '<button type="button" data-status="'+s+'" class="'+(f.status===s?"active":"")+'">'+s+'</button>'; }).join("")+
   '</div>';
+  html += '<div class="pill-filter" style="margin-bottom:14px;" id="job-source-filter">'+
+    '<button type="button" data-source="all" class="'+(f.source==="all"?"active":"")+'">All sources</button>'+
+    '<button type="button" data-source="crm" class="'+(f.source==="crm"?"active":"")+'">Added in CRM</button>'+
+    '<button type="button" data-source="email" class="'+(f.source==="email"?"active":"")+'">From email alerts</button>'+
+  '</div>';
+  if (f.status !== "Open" && f.status !== "On Hold"){
+    html += '<div style="font-size:12px;color:var(--ink-400);margin:-6px 0 12px;">Filled, closed and cancelled jobs from the last 12 months are shown. Older ones are kept but not loaded, to keep the CRM fast.</div>';
+  }
 
   html += '<div class="table-wrap"><table><thead>'+
-    '<tr><th>Title</th><th>Hospital</th><th>Specialty</th><th>Job type</th><th>Location</th><th>Status</th><th>Recruiter</th><th>Date opened</th></tr>'+
+    '<tr><th>Title</th><th>Hospital</th><th>Specialty</th><th>Job type</th><th>Location</th><th>Rate</th><th>Status</th><th>Recruiter</th><th>Date opened</th></tr>'+
     '<tr class="filter-row">'+
       filterRowInput("title", f.title)+
       filterRowInput("hospital", f.hospital)+
@@ -5247,21 +5275,24 @@ function renderJobsList(){
       '<th></th>'+
       filterRowInput("location", f.location)+
       '<th></th>'+
+      '<th></th>'+
       filterRowInput("recruiter", f.recruiter)+
       '<th></th>'+
     '</tr>'+
   '</thead><tbody>';
   if (list.length === 0){
-    html += '<tr><td colspan="8"><div class="empty" style="border:none;background:none;">No matches.</div></td></tr>';
+    html += '<tr><td colspan="9"><div class="empty" style="border:none;background:none;">No matches.</div></td></tr>';
   } else {
-    list.forEach(function(j){
+    shown.forEach(function(j){
       var hosp = findHospital(j.hospitalId);
+      var srcTag = j.source === "Email alert" ? ' <span class="stage-pill" style="background:var(--amber-100);color:var(--amber-600);font-size:10.5px;" title="Came in through the agency job-alert feed'+(j.sourceRef ? " ("+escapeHtml(j.sourceRef)+")" : "")+'">Email alert</span>' : '';
       html += '<tr data-action="open-job" data-id="'+j.id+'">'+
-        '<td class="name">'+escapeHtml(j.title)+'</td>'+
+        '<td class="name">'+escapeHtml(j.title)+srcTag+'</td>'+
         '<td>'+(hosp ? escapeHtml(hosp.name) : '-')+'</td>'+
         '<td>'+escapeHtml(j.specialty||"-")+'</td>'+
         '<td>'+escapeHtml(j.jobType||"-")+'</td>'+
         '<td>'+escapeHtml(locationOf(j)||"-")+'</td>'+
+        '<td style="white-space:nowrap;">'+escapeHtml(j.rate||"-")+'</td>'+
         '<td>'+statusBadgeHtml(j.status)+'</td>'+
         '<td>'+escapeHtml(j.recruiter||"-")+'</td>'+
         '<td class="mono">'+fmtDate(j.dateOpened)+'</td>'+
@@ -5269,6 +5300,10 @@ function renderJobsList(){
     });
   }
   html += '</tbody></table></div>';
+  if (list.length > shown.length){
+    html += '<div style="text-align:center;margin:14px 0;"><span style="font-size:12.5px;color:var(--ink-400);margin-right:10px;">Showing '+shown.length+' of '+list.length+'</span>'+
+      '<button class="btn btn-sm" type="button" data-action="jobs-show-more">Show more</button></div>';
+  }
   return html;
 }
 
@@ -5295,6 +5330,8 @@ function renderJobDetail(id){
     '<div class="field-item"><label>Job type</label><div class="val">'+escapeHtml(j.jobType||"-")+'</div></div>'+
     '<div class="field-item"><label>Location</label><div class="val">'+escapeHtml(locationOf(j)||"-")+'</div></div>'+
     '<div class="field-item"><label>Dates</label><div class="val">'+(j.startDate ? (fmtDate(j.startDate)+(j.endDate?(" - "+fmtDate(j.endDate)):" onwards")) : "-")+'</div></div>'+
+    '<div class="field-item"><label>Rate</label><div class="val">'+escapeHtml(j.rate||"-")+'</div></div>'+
+    '<div class="field-item"><label>Source</label><div class="val">'+(j.source === "Email alert" ? ('Email alert'+(j.sourceRef ? ' &middot; '+escapeHtml(j.sourceRef) : '')+'<div style="font-size:11.5px;color:var(--amber-600);margin-top:3px;">Advertised through the agency job-alert feed. The hospital may not be a TDN client yet, so check before submitting a doctor.</div>') : escapeHtml(j.source||"Added in CRM"))+'</div></div>'+
     '<div class="field-item"><label>Recruiter</label><div class="val">'+escapeHtml(j.recruiter||"-")+'</div></div>'+
     '<div class="field-item"><label>Recruiter / owner</label><div class="val">'+escapeHtml(j.recruiterUserId ? crmUserLabel(findCrmUser(j.recruiterUserId)||{}) : "-")+'</div></div>'+
     '<div class="field-item"><label>Date opened</label><div class="val">'+fmtDate(j.dateOpened)+'</div></div>'+
@@ -6233,6 +6270,7 @@ function addJobModalHtml(existing, prefillHospitalId){
       '<div class="form-row"><label>Start date</label><input type="date" name="startDate" value="'+(j.startDate||"")+'" /></div>'+
       '<div class="form-row"><label>End date <span style="font-weight:400;color:var(--ink-400);">(leave blank if ongoing)</span></label><input type="date" name="endDate" value="'+(j.endDate||"")+'" /></div>'+
     '</div>'+
+    '<div class="form-row"><label>Rate</label><input type="text" name="rate" value="'+escapeHtml(j.rate||"")+'" placeholder="e.g. $2,800 per day, $140 per hour, Rate TBC" /></div>'+
     '<div class="form-row"><label>Description</label><textarea name="description" rows="3" placeholder="Shown to doctors on their job radar link">'+escapeHtml(j.description)+'</textarea></div>'+
     '<div class="two-col">'+
       '<div class="form-row"><label>Recruiter</label><input type="text" name="recruiter" list="recruiter-list" value="'+escapeHtml(j.recruiter)+'" /></div>'+
@@ -6670,6 +6708,7 @@ document.addEventListener("click", function(e){
     deleteClient(confClientId);
     closeModal(); persist(); nav("#/clients");
   }
+  else if (action === "jobs-show-more"){ uiFilters.jobs.limit = (uiFilters.jobs.limit || 100) + 100; render(); }
   else if (action === "open-add-job"){ openModal(addJobModalHtml(null, actEl.getAttribute("data-hospital"))); }
   else if (action === "open-edit-job"){ openModal(addJobModalHtml(findJob(actEl.getAttribute("data-id")))); }
   else if (action === "open-add-placement"){
@@ -7138,7 +7177,9 @@ document.addEventListener("click", function(e){
   }
 
   var stageFilterBtn = e.target.closest ? e.target.closest("#job-status-filter button") : null;
-  if (stageFilterBtn){ uiFilters.jobs.status = stageFilterBtn.getAttribute("data-status"); render(); return; }
+  if (stageFilterBtn){ uiFilters.jobs.status = stageFilterBtn.getAttribute("data-status"); uiFilters.jobs.limit = 100; render(); return; }
+  var sourceFilterBtn = e.target.closest ? e.target.closest("#job-source-filter button") : null;
+  if (sourceFilterBtn){ uiFilters.jobs.source = sourceFilterBtn.getAttribute("data-source"); uiFilters.jobs.limit = 100; render(); return; }
   var placementFilterBtn = e.target.closest ? e.target.closest("#placement-status-filter button") : null;
   if (placementFilterBtn){ uiFilters.placements.status = placementFilterBtn.getAttribute("data-status"); render(); return; }
 });
@@ -7510,11 +7551,11 @@ document.addEventListener("submit", function(e){
     toast("Email settings saved.");
   } else if (action === "submit-add-job"){
     if (!fd.get("hospitalId")){ toast("Please pick a hospital from the search results."); return; }
-    var j = addJob({ title:fd.get("title"), hospitalId:fd.get("hospitalId"), specialty:fd.get("specialty"), subSpecialty:fd.get("subSpecialty"), jobType:fd.get("jobType"), description:fd.get("description"), startDate:fd.get("startDate"), endDate:fd.get("endDate"), city:fd.get("city"), region:fd.get("region"), status:fd.get("status"), recruiter:fd.get("recruiter"), recruiterUserId:fd.get("recruiterUserId"), dateOpened:fd.get("dateOpened") });
+    var j = addJob({ title:fd.get("title"), hospitalId:fd.get("hospitalId"), specialty:fd.get("specialty"), subSpecialty:fd.get("subSpecialty"), jobType:fd.get("jobType"), description:fd.get("description"), startDate:fd.get("startDate"), endDate:fd.get("endDate"), city:fd.get("city"), region:fd.get("region"), status:fd.get("status"), recruiter:fd.get("recruiter"), recruiterUserId:fd.get("recruiterUserId"), rate:fd.get("rate"), dateOpened:fd.get("dateOpened") });
     closeModal(); persist(); nav("#/jobs/"+j.id);
   } else if (action === "submit-edit-job"){
     if (!fd.get("hospitalId")){ toast("Please pick a hospital from the search results."); return; }
-    updateJob(form.getAttribute("data-id"), { title:fd.get("title"), hospitalId:fd.get("hospitalId"), specialty:fd.get("specialty"), subSpecialty:fd.get("subSpecialty"), jobType:fd.get("jobType"), description:fd.get("description"), startDate:fd.get("startDate"), endDate:fd.get("endDate"), city:fd.get("city"), region:fd.get("region"), status:fd.get("status"), recruiter:fd.get("recruiter"), recruiterUserId:fd.get("recruiterUserId"), dateOpened:fd.get("dateOpened") });
+    updateJob(form.getAttribute("data-id"), { title:fd.get("title"), hospitalId:fd.get("hospitalId"), specialty:fd.get("specialty"), subSpecialty:fd.get("subSpecialty"), jobType:fd.get("jobType"), description:fd.get("description"), startDate:fd.get("startDate"), endDate:fd.get("endDate"), city:fd.get("city"), region:fd.get("region"), status:fd.get("status"), recruiter:fd.get("recruiter"), recruiterUserId:fd.get("recruiterUserId"), rate:fd.get("rate"), dateOpened:fd.get("dateOpened") });
     closeModal(); persist();
   } else if (action === "submit-add-placement"){
     if (!fd.get("doctorId")){ toast("Please pick a doctor from the search results."); return; }
