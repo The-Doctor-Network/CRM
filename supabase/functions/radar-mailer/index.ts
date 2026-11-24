@@ -47,56 +47,85 @@ function hi(d: any){ const f = String(d.first_name || "").trim(); return f ? `Hi
 function shell(bodyHtml: string, d: any){
   return `<div style="font-family:Arial,Helvetica,sans-serif;color:${ink};font-size:15px;line-height:1.6;max-width:560px;">${bodyHtml}` +
     `<hr style="border:none;border-top:1px solid ${line};margin:28px 0 12px;">` +
-    `<p style="font-size:12px;color:${quiet};margin:0;">The Doctor Network &middot; <a href="${stopLink(d)}" style="color:${quiet};">Stop Jobs Radar emails</a></p></div>`;
+    `<p style="font-size:12px;color:${quiet};margin:0;">The Doctor Network &middot; <a href="${stopLink(d)}" style="color:${quiet};">Stop job radar emails</a></p></div>`;
 }
 function button(href: string, label: string){
   return `<p style="margin:22px 0;"><a href="${href}" style="display:inline-block;background:${coral};color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:999px;">${label}</a></p>`;
 }
-function textFooter(d: any){ return `\n\n---\nThe Doctor Network\nStop Jobs Radar emails: ${stopLink(d)}`; }
+function textFooter(d: any){ return `\n\n---\nThe Doctor Network\nStop job radar emails: ${stopLink(d)}`; }
 
 // ---------- launch templates (founder voice) ----------
-function launch1(d: any){
+// ctx: { n, subLabel, started, week } worked out per doctor from open psychiatry roles:
+//   n        open roles in their sub-specialty (and level) now; all psychiatry if that's under 4
+//   subLabel "child & adolescent psychiatry", or "psychiatry" when unknown / n fell back
+//   started  "Consultant · Child & Adolescent Psychiatry" from their CRM record, or ""
+//   week     roles added (date_opened) in the last 7 days, same fallback rule
+function preheader(t: string){ return `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(t)}</div>`; }
+function startedHtml(ctx: any, lead: string){
+  return ctx.started
+    ? `<p>${lead} <strong>${esc(ctx.started)}</strong>. Add where and when you'd work, and you're done.</p>`
+    : `<p>Add your sub-specialty, level, where and when you'd work, and you're done.</p>`;
+}
+function startedText(ctx: any, lead: string){
+  return ctx.started ? `${lead} ${ctx.started}. Add where and when you'd work, and you're done.` : `Add your sub-specialty, level, where and when you'd work, and you're done.`;
+}
+function launch1(d: any, ctx: any){
   const link = radarLink(d, "email1");
-  const html = shell(
+  const pre = `Just the ${ctx.subLabel} roles that actually fit you.`;
+  const html = shell(preheader(pre) +
     `<p>${esc(hi(d))}</p>` +
-    `<p>I'll keep this short, because I know your inbox is full.</p>` +
-    `<p>That's actually the problem. After 6.5 years recruiting psychiatrists, I hear the same thing every week: &ldquo;I get so many job emails, and almost none of them are for me.&rdquo; Wrong sub-specialty. Wrong state. No rate. Roles that filled a month ago.</p>` +
-    `<p>So for the past 12 months, we've been building something better.</p>` +
-    `<p><strong>It's called Jobs Radar.</strong> It's a private page just for you. Tell us once what you'd consider: your sub-specialty, locum or permanent, where you'd work and when you're free. Every Thursday, you'll get only the new roles that match. Rates and dates included. Nothing else.</p>` +
-    `<p>Happy where you are? It still works. Leave your dates open and you'll only hear about roles worth a second look.</p>` +
-    button(link, "Set up your Jobs Radar &rarr;") +
-    `<p>It takes about a minute, and you can change it any time.</p>` +
-    `<p>Cydney Hughes<br>Founder, The Doctor Network</p>` +
-    `<p style="font-size:13px;color:${quiet};">P.S. This link is private to you, so please don't forward it. If it doesn't work, just reply and I'll sort it.</p>`, d);
-  const text = `${hi(d)}\n\nI'll keep this short, because I know your inbox is full.\n\nThat's actually the problem. After 6.5 years recruiting psychiatrists, I hear the same thing every week: "I get so many job emails, and almost none of them are for me." Wrong sub-specialty. Wrong state. No rate. Roles that filled a month ago.\n\nSo for the past 12 months, we've been building something better.\n\nIt's called Jobs Radar. It's a private page just for you. Tell us once what you'd consider: your sub-specialty, locum or permanent, where you'd work and when you're free. Every Thursday, you'll get only the new roles that match. Rates and dates included. Nothing else.\n\nHappy where you are? It still works. Leave your dates open and you'll only hear about roles worth a second look.\n\nSet up your Jobs Radar: ${link}\n\nIt takes about a minute, and you can change it any time.\n\nCydney Hughes\nFounder, The Doctor Network\n\nP.S. This link is private to you, so please don't forward it. If it doesn't work, just reply and I'll sort it.` + textFooter(d);
-  return { from: FROM_FOUNDER, subject: "I built this because job emails are broken", html, text };
+    `<p>There are ${ctx.n} ${esc(ctx.subLabel)} roles open across Australia right now. You don't need to see all ${ctx.n}. You need the two or three that fit.</p>` +
+    `<p>Finding them is the hard part: the wrong level, places you'd never work, dates that don't suit. Most doctors end up ignoring job emails altogether.</p>` +
+    `<p>So we've built you a <strong>personalised job radar</strong>. Tell us once what you'd consider, and every Thursday you'll get only the roles that match. Nothing else.</p>` +
+    startedHtml(ctx, "We've already started yours:") +
+    button(link, "See your job radar &rarr;") +
+    `<ul style="padding-left:20px;margin:0 0 16px;"><li>Only roles that match you</li><li>No calls unless you ask</li><li>Change it or pause it any time</li></ul>` +
+    `<p>Cydney Hughes<br>Founder, The Doctor Network</p>`, d);
+  const text = `${hi(d)}\n\nThere are ${ctx.n} ${ctx.subLabel} roles open across Australia right now. You don't need to see all ${ctx.n}. You need the two or three that fit.\n\nFinding them is the hard part: the wrong level, places you'd never work, dates that don't suit. Most doctors end up ignoring job emails altogether.\n\nSo we've built you a personalised job radar. Tell us once what you'd consider, and every Thursday you'll get only the roles that match. Nothing else.\n\n${startedText(ctx, "We've already started yours:")}\n\nSee your job radar: ${link}\n\n- Only roles that match you\n- No calls unless you ask\n- Change it or pause it any time\n\nCydney Hughes\nFounder, The Doctor Network` + textFooter(d);
+  return { from: FROM_FOUNDER, subject: `You don't need to see all ${ctx.n}`, html, text };
 }
-function launch2(d: any){
+function launch2(d: any, ctx: any){
   const link = radarLink(d, "email2");
-  const html = shell(
+  const html = shell(preheader("Hear about the right role, and nothing else.") +
     `<p>${esc(hi(d))}</p>` +
-    `<p>Quick follow-up on Jobs Radar.</p>` +
-    `<p>Plenty of doctors aren't actively looking. They're happy where they are, but they'd take the right locum or the right permanent role if it came along.</p>` +
-    `<p>That's exactly who it's built for. Tell us what &ldquo;right&rdquo; looks like, and we'll only send you roles that fit.</p>` +
-    button(link, "Set up your Jobs Radar &rarr;") +
-    `<p>One minute. No CV. Change it whenever you like.</p>` +
+    `<p>Most of the doctors I speak to aren't looking. They're settled. But they'd take the right role if it found them.</p>` +
+    `<p>That's what your job radar is for. You tell us once what &ldquo;right&rdquo; looks like. We do the sifting, and only send what fits.</p>` +
+    (ctx.started ? `<p>Yours is already started: <strong>${esc(ctx.started)}</strong>.</p>` : "") +
+    button(link, "Finish your job radar &rarr;") +
+    `<p>One minute. No CV. Pause it any time.</p>` +
     `<p>Cydney</p>`, d);
-  const text = `${hi(d)}\n\nQuick follow-up on Jobs Radar.\n\nPlenty of doctors aren't actively looking. They're happy where they are, but they'd take the right locum or the right permanent role if it came along.\n\nThat's exactly who it's built for. Tell us what "right" looks like, and we'll only send you roles that fit.\n\nSet up your Jobs Radar: ${link}\n\nOne minute. No CV. Change it whenever you like.\n\nCydney` + textFooter(d);
-  return { from: FROM_FOUNDER, subject: "Not looking? This is still for you", html, text };
+  const text = `${hi(d)}\n\nMost of the doctors I speak to aren't looking. They're settled. But they'd take the right role if it found them.\n\nThat's what your job radar is for. You tell us once what "right" looks like. We do the sifting, and only send what fits.\n\n${ctx.started ? "Yours is already started: " + ctx.started + ".\n\n" : ""}Finish your job radar: ${link}\n\nOne minute. No CV. Pause it any time.\n\nCydney` + textFooter(d);
+  return { from: FROM_FOUNDER, subject: "Not looking? Keep the door open", html, text };
 }
-function launch3(d: any){
+function launch3(d: any, ctx: any){
   const link = radarLink(d, "email3");
-  const html = shell(
+  const weekLine = ctx.week > 0
+    ? `This week, ${ctx.week} new ${esc(ctx.weekLabel)} roles came through. Most won't suit you, and that's the point: your job radar only sends the ones that do.`
+    : `New roles come through every week. Most won't suit you, and that's the point: your job radar only sends the ones that do.`;
+  const html = shell(preheader("After this, it's just the fortnightly jobs board.") +
     `<p>${esc(hi(d))}</p>` +
-    `<p>I won't keep asking about Jobs Radar, so this is the last one.</p>` +
-    `<p>If you'd like to hear only about roles that match you, every Thursday, your private link is here:</p>` +
-    button(link, "Set up your Jobs Radar &rarr;") +
-    `<p>If not, no problem. You'll keep getting our fortnightly <a href="${JOBS_BOARD}" style="color:${coral};font-weight:bold;">jobs board</a>, and you can set up your radar any time from the link above.</p>` +
+    `<p>Last one from me on this, promise.</p>` +
+    `<p>${weekLine}</p>` +
+    button(link, "Set up your job radar &rarr;") +
+    `<p>If now's not the time, no problem. You'll still get our fortnightly <a href="${JOBS_BOARD}" style="color:${coral};font-weight:bold;">jobs board</a>, and your link stays open whenever you want it.</p>` +
     `<p>Cydney</p>`, d);
-  const text = `${hi(d)}\n\nI won't keep asking about Jobs Radar, so this is the last one.\n\nIf you'd like to hear only about roles that match you, every Thursday, your private link is here:\n${link}\n\nIf not, no problem. You'll keep getting our fortnightly jobs board (${JOBS_BOARD}), and you can set up your radar any time from the link above.\n\nCydney` + textFooter(d);
+  const text = `${hi(d)}\n\nLast one from me on this, promise.\n\n${weekLine.replace(/&[a-z]+;/g, "")}\n\nSet up your job radar: ${link}\n\nIf now's not the time, no problem. You'll still get our fortnightly jobs board (${JOBS_BOARD}), and your link stays open whenever you want it.\n\nCydney` + textFooter(d);
   return { from: FROM_FOUNDER, subject: "Last one from me on this", html, text };
 }
-const LAUNCH: Record<number, (d: any) => any> = { 1: launch1, 2: launch2, 3: launch3 };
+const GRADE_WORD: Record<string, string> = { Consultant: "Consultant", Registrar: "Registrar", CMO: "CMO" };
+function launchContext(d: any, psychJobs: any[]){
+  const sub = d.sub_specialty || "";
+  const fits = (j: any) => (!sub || j.sub_specialty === sub) && (!d.grade || !j.grade || j.grade === d.grade);
+  const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const added = (j: any) => String(j.date_opened || j.created_at || "").slice(0, 10);
+  let n = psychJobs.filter(fits).length, subLabel = sub ? sub.toLowerCase() : "psychiatry";
+  if (n < 4){ n = psychJobs.length; subLabel = "psychiatry"; }
+  let week = psychJobs.filter((j: any) => fits(j) && added(j) >= weekAgo).length, weekLabel = sub ? sub.toLowerCase() : "psychiatry";
+  if (week < 2){ week = psychJobs.filter((j: any) => added(j) >= weekAgo).length; weekLabel = "psychiatry"; }
+  const started = [GRADE_WORD[d.grade] || "", sub].filter(Boolean).join(" · ");
+  return { n, subLabel, started, week, weekLabel };
+}
+const LAUNCH: Record<number, (d: any, ctx: any) => any> = { 1: launch1, 2: launch2, 3: launch3 };
 
 // ---------- weekly radar email ----------
 function displayLocation(j: any){
@@ -249,6 +278,10 @@ async function runWeekly(admin: any, dryRun: boolean){
   return { mode: "weekly", eligibleDoctors: doctors.length, emailed: okDoctors.size, failed: items.length - okDoctors.size };
 }
 
+async function openPsychJobs(admin: any){
+  return await fetchAll(() => admin.from("jobs").select("id,sub_specialty,grade,date_opened,created_at").eq("status", "Open").eq("specialty", "Psychiatry").order("id"));
+}
+
 async function runLaunch(admin: any, step: number, limit: number, dryRun: boolean){
   const all = await fetchAll(() => admin.from("doctors").select(DOC_COLS).eq("specialty", "Psychiatry").is("radar_saved_at", null).order("id"));
   let pool = await emailableFilter(admin, all);
@@ -267,7 +300,8 @@ async function runLaunch(admin: any, step: number, limit: number, dryRun: boolea
   pool.sort((a: any, b: any) => warmth(b) - warmth(a));
   const batch = pool.slice(0, Math.max(0, Math.min(limit, 2000)));
   if (dryRun) return { mode: "launch", step, remaining: pool.length, wouldSend: batch.length };
-  const items = batch.map((d: any) => ({ doctor: d, msg: LAUNCH[step](d), tag: `Jobs Radar launch ${step}` }));
+  const psychJobs = await openPsychJobs(admin);
+  const items = batch.map((d: any) => ({ doctor: d, msg: LAUNCH[step](d, launchContext(d, psychJobs)), tag: `Jobs Radar launch ${step}` }));
   const ids = await sendBatch(admin, items);
   const rows = items.map((it, k) => ids[k] ? { doctor_id: it.doctor.id, step, resend_message_id: ids[k] } : null).filter(Boolean);
   for (let i = 0; i < rows.length; i += 1000) await admin.from("radar_campaign_sends").upsert(rows.slice(i, i + 1000) as any[], { onConflict: "doctor_id,step" });
@@ -287,7 +321,7 @@ async function runTest(admin: any, template: string, doctorId: string, to: strin
   } else {
     const step = Number(template.replace("launch", ""));
     if (!LAUNCH[step]) return json({ error: "Unknown template." }, 400);
-    msg = LAUNCH[step](d);
+    msg = LAUNCH[step](d, launchContext(d, await openPsychJobs(admin)));
   }
   msg = { ...msg, subject: "TEST: " + msg.subject };
   const ids = await sendBatch(admin, [{ doctor: { ...d, email: to }, msg, tag: "Jobs Radar test" }]);
