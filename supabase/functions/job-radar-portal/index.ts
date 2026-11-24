@@ -30,6 +30,9 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL");
 
 const CRM_BASE = "https://the-doctor-network.github.io/CRM/";
+// Transactional email: sent from the main domain (the CRM's Resend key is limited to it).
+const DOCTOR_FROM = "The Doctor Network <hello@thedoctornetwork.com.au>";
+const DOCTOR_REPLY_TO = "hello@thedoctornetwork.com.au";
 const FALLBACK_RECRUITER_EMAIL = "cydney@thedoctornetwork.com.au";
 
 const SPECIALTY_OPTIONS = ["Anesthetist","Emergency","Intensive Care","Medicine","Obstetrics and Gynaecology","Ophthalmology","Paediatrics","Psychiatry","Surgery","Radiographer","Radiology","General Practice"];
@@ -200,6 +203,94 @@ function describeChanges(before: any, after: any): string[] {
   return out;
 }
 
+function jobsBoardUrlFor(specialty: string){
+  return specialty === "General Practice" ? "https://thedoctornetwork.com.au/GPJobsBoard/" : "https://thedoctornetwork.com.au/opportunities.html";
+}
+
+// Can we email this doctor? Needs a real address, not blocked in the CRM (or the block has
+// expired), and not in email_optouts.
+async function canEmailDoctor(admin: any, doctor: any){
+  const email = String(doctor?.email || "").trim().toLowerCase();
+  if (!email || email.indexOf("@") === -1) return null;
+  if (doctor.email_blocked){
+    const until = doctor.email_blocked_until;
+    if (!until || until >= sydneyToday()) return null;
+  }
+  const { data: optout } = await admin.from("email_optouts").select("email").eq("email", email).maybeSingle();
+  if (optout) return null;
+  return String(doctor.email).trim();
+}
+
+// Confirmation email to the doctor after they change their preferences (only when something
+// actually changed). Signed by the team, replies to hello@.
+async function sendDoctorConfirmation(admin: any, doctor: any, jobCount: number){
+  if (!RESEND_API_KEY) return;
+  const to = await canEmailDoctor(admin, doctor);
+  if (!to) return;
+
+  const first = String(doctor.first_name || "").trim();
+  const greeting = first ? `Hi Dr ${escapeHtml(first)},` : "Hi there,";
+  const greetingText = first ? `Hi Dr ${first},` : "Hi there,";
+  const spec = [doctor.specialty, doctor.sub_specialty].filter(Boolean).join(", ") || "Any";
+  const types: string[] = Array.isArray(doctor.pref_job_types) ? doctor.pref_job_types : [];
+  const typeText = types.length ? types.join(", ") : "Any";
+  const s = doctor.pref_availability_start, e = doctor.pref_availability_end;
+  const avail = (s || e) ? `${s ? fmtDate(s) : "Now"} – ${e ? fmtDate(e) : "ongoing"}` : "Flexible";
+  const radarUrl = `${CRM_BASE}job-radar.html?token=${encodeURIComponent(doctor.job_radar_token)}`;
+  const boardUrl = jobsBoardUrlFor(doctor.specialty || "");
+  const unsubUrl = `${SUPABASE_URL}/functions/v1/unsubscribe?email=${encodeURIComponent(to.toLowerCase())}`;
+  const matchLine = jobCount > 0
+    ? `Right now, <strong>${jobCount} open role${jobCount === 1 ? "" : "s"}</strong> match what you're after.`
+    : `Nothing matches just yet, but new roles come in every day and they'll show up on your radar as soon as they do.`;
+  const matchText = jobCount > 0
+    ? `Right now, ${jobCount} open role${jobCount === 1 ? "" : "s"} match what you're after.`
+    : `Nothing matches just yet, but new roles come in every day and they'll show up on your radar as soon as they do.`;
+  const linkLabel = jobCount > 0 ? "See your matching roles &rarr;" : "Open your job radar &rarr;";
+
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#142328;font-size:15px;line-height:1.6;max-width:560px;">` +
+    `<p>${greeting}</p>` +
+    `<p>Thanks for updating your job radar! Here's what we've got for you now:</p>` +
+    `<ul style="padding-left:20px;margin:0 0 14px;">` +
+      `<li><strong>Specialty:</strong> ${escapeHtml(spec)}</li>` +
+      `<li><strong>Job type:</strong> ${escapeHtml(typeText)}</li>` +
+      `<li><strong>Available:</strong> ${escapeHtml(avail)}</li>` +
+    `</ul>` +
+    `<p>${matchLine}</p>` +
+    `<p><a href="${radarUrl}" style="display:inline-block;background:#F76747;color:#ffffff;text-decoration:none;font-weight:bold;padding:11px 22px;border-radius:999px;">${linkLabel}</a></p>` +
+    `<p>New roles come in every day, so your radar keeps updating. If your plans change, you can update your preferences on the same link any time.</p>` +
+    `<p>If one of these catches your eye, or you'd like to chat about what's out there, just hit reply.</p>` +
+    `<p>You can also browse every role on our <a href="${boardUrl}" style="color:#F76747;font-weight:bold;">jobs board</a>.</p>` +
+    `<p>Thanks,<br>The Doctor Network Team<br><span style="color:#5B6B70;">Doctors are better connected.</span></p>` +
+    `<hr style="border:none;border-top:1px solid #E7E3DA;margin:24px 0 12px;">` +
+    `<p style="font-size:12px;color:#5B6B70;">The Doctor Network &middot; <a href="${unsubUrl}" style="color:#5B6B70;">Unsubscribe</a></p>` +
+    `</div>`;
+  const text = `${greetingText}\n\nThanks for updating your job radar! Here's what we've got for you now:\n\n` +
+    `- Specialty: ${spec}\n- Job type: ${typeText}\n- Available: ${avail}\n\n${matchText}\n\n` +
+    `${jobCount > 0 ? "See your matching roles" : "Open your job radar"}: ${radarUrl}\n\n` +
+    `New roles come in every day, so your radar keeps updating. If your plans change, you can update your preferences on the same link any time.\n\n` +
+    `If one of these catches your eye, or you'd like to chat about what's out there, just hit reply.\n\n` +
+    `You can also browse every role on our jobs board: ${boardUrl}\n\n` +
+    `Thanks,\nThe Doctor Network Team\nDoctors are better connected.\n\n---\nThe Doctor Network\nUnsubscribe: ${unsubUrl}`;
+  const subject = "Your job radar is updated";
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: DOCTOR_FROM, to: [to], reply_to: DOCTOR_REPLY_TO, subject, html, text,
+        headers: { "List-Unsubscribe": `<${unsubUrl}>` }
+      })
+    });
+    const body = await res.json().catch(() => ({} as any));
+    await admin.from("sent_emails").insert({
+      linked_type: "doctor", linked_id: doctor.id, to_email: to, subject,
+      resend_message_id: body?.id || null, status: res.ok ? "sent" : "failed",
+      sent_by: "Job radar", error: res.ok ? null : JSON.stringify(body)
+    });
+  } catch (err) { console.error("doctor confirmation failed", err); }
+}
+
 async function notifyRecruiterOfPreferenceChange(admin: any, before: any, after: any, matchCount: number){
   const changes = describeChanges(before, after);
   if (!changes.length) return;
@@ -273,8 +364,13 @@ Deno.serve(async (req: Request) => {
       if (updErr){ console.error("preference update failed", updErr); return json({ error: "We couldn't save your preferences right now. Please try again shortly." }, 500); }
 
       const jobs = await matchingJobsFor(admin, updated);
+      const changed = describeChanges(doctor, updated).length > 0;
       try { await notifyRecruiterOfPreferenceChange(admin, doctor, updated, jobs.length); }
       catch (e) { console.error("recruiter notify failed", e); }
+      if (changed){
+        try { await sendDoctorConfirmation(admin, updated, jobs.length); }
+        catch (e) { console.error("doctor confirmation failed", e); }
+      }
       return json({ ok: true, ...preferencesPayload(updated), jobs });
     }
 
