@@ -107,12 +107,16 @@ if (!token){
   loadData();
 }
 
+function srcParam(){
+  var src = qs("src");
+  return src && /^[a-z0-9_-]{1,30}$/i.test(src) ? "&src=" + encodeURIComponent(src.toLowerCase()) : "";
+}
 function apiGet(){
-  return fetch(API_BASE + "?token=" + encodeURIComponent(token))
+  return fetch(API_BASE + "?token=" + encodeURIComponent(token) + srcParam())
     .then(function(res){ return res.json().then(function(body){ return { ok: res.ok, body: body }; }); });
 }
 function apiPost(payload){
-  return fetch(API_BASE + "?token=" + encodeURIComponent(token), {
+  return fetch(API_BASE + "?token=" + encodeURIComponent(token) + srcParam(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -120,6 +124,15 @@ function apiPost(payload){
 }
 
 function loadData(){
+  if (qs("stop") === "1"){
+    apiPost({ action: "stop_radar_emails" }).then(function(){
+      apiGet().then(function(r){
+        if (!r.ok){ renderError((r.body && r.body.error) || "This link is invalid. Please ask The Doctor Network to resend it."); return; }
+        renderPage(r.body, "Done. You won't get Jobs Radar emails any more. Your radar link still works, and saving your preferences turns the emails back on.", false);
+      });
+    }).catch(function(){ renderError("We couldn't update that right now. Please try again shortly."); });
+    return;
+  }
   apiGet().then(function(r){
     if (!r.ok){ renderError((r.body && r.body.error) || "This link is invalid. Please ask The Doctor Network to resend it."); return; }
     renderPage(r.body);
@@ -158,6 +171,16 @@ function renderPage(data, statusMsg, statusIsError){
     return "<label class=\"chip" + (checked ? " checked" : "") + "\"><input type=\"checkbox\" data-jobtype=\"" + esc(t) + "\" " + (checked ? "checked" : "") + " /> " + esc(t) + "</label>";
   }).join("");
 
+  var states = data.states || [];
+  var stateChips = "<label class=\"chip" + (states.length ? "" : " checked") + "\"><input type=\"checkbox\" id=\"stateAnywhere\" " + (states.length ? "" : "checked") + " /> Anywhere</label>" +
+    (data.stateOptions || []).map(function(st){
+      var checked = states.indexOf(st) !== -1;
+      return "<label class=\"chip" + (checked ? " checked" : "") + "\"><input type=\"checkbox\" data-state=\"" + esc(st) + "\" " + (checked ? "checked" : "") + " /> " + esc(st) + "</label>";
+    }).join("");
+  var gradeSelect = "<select id=\"prefGrade\"><option value=\"\">Select your level...</option>" +
+    (data.gradeOptions || []).map(function(g){ return "<option value=\"" + esc(g.value) + "\" " + (g.value === data.grade ? "selected" : "") + ">" + esc(g.label) + "</option>"; }).join("") +
+    "</select>";
+
   var jobCards = (data.jobs || []).length ? (data.jobs || []).map(function(j){
     var tags = [j.jobType, j.specialty, j.subSpecialty].filter(Boolean).map(function(t){ return "<span class=\"tag\">" + esc(t) + "</span>"; }).join("");
     var dateRange = j.startDate ? (esc(fmtDate(j.startDate)) + (j.endDate ? " - " + esc(fmtDate(j.endDate)) : " onwards")) : "";
@@ -183,7 +206,9 @@ function renderPage(data, statusMsg, statusIsError){
       "</select></div>" +
       "<div class=\"row\"><label>Sub-specialty</label><select id=\"prefSubSpecialty\">" + subSpecialtyOptionsHtml(data.specialty, data.subSpecialty) + "</select></div>" +
     "</div>" +
+    "<div class=\"row\"><label>Your level</label>" + gradeSelect + "</div>" +
     "<div class=\"row\"><label>Job type (leave blank for any)</label><div class=\"chip-group\" id=\"jobTypeChips\">" + jobTypeChips + "</div></div>" +
+    "<div class=\"row\"><label>Where would you work?</label><div class=\"chip-group\" id=\"stateChips\">" + stateChips + "</div></div>" +
     "<div class=\"row\"><label>Available from / to</label>" +
       "<div class=\"two-col\"><div><input type=\"date\" id=\"prefAvailFrom\" value=\"" + esc(data.availabilityStart || "") + "\" /></div><div><input type=\"date\" id=\"prefAvailTo\" value=\"" + esc(data.availabilityEnd || "") + "\" /></div></div>" +
       "<div class=\"month-picker\"><span style=\"font-size:12.5px;color:#5B6B70;\">or pick a month:</span><select id=\"prefMonthPick\"><option value=\"\">Select a month...</option>" + monthOptionsHtml() + "</select></div>" +
@@ -201,6 +226,23 @@ function renderPage(data, statusMsg, statusIsError){
   document.querySelectorAll("#jobTypeChips .chip").forEach(function(chip){
     chip.addEventListener("change", function(){
       chip.classList.toggle("checked", chip.querySelector("input").checked);
+    });
+  });
+
+  var anywhere = document.getElementById("stateAnywhere");
+  var stateInputs = Array.prototype.slice.call(document.querySelectorAll("#stateChips input[data-state]"));
+  function syncStateChips(){
+    document.querySelectorAll("#stateChips .chip").forEach(function(c){ c.classList.toggle("checked", c.querySelector("input").checked); });
+  }
+  anywhere.addEventListener("change", function(){
+    if (anywhere.checked) stateInputs.forEach(function(i){ i.checked = false; });
+    else if (!stateInputs.some(function(i){ return i.checked; })) anywhere.checked = true;
+    syncStateChips();
+  });
+  stateInputs.forEach(function(inp){
+    inp.addEventListener("change", function(){
+      anywhere.checked = !stateInputs.some(function(i){ return i.checked; });
+      syncStateChips();
     });
   });
 
@@ -223,6 +265,8 @@ function renderPage(data, statusMsg, statusIsError){
       specialty: document.getElementById("prefSpecialty").value,
       subSpecialty: document.getElementById("prefSubSpecialty").value,
       jobTypes: jobTypes,
+      states: stateInputs.filter(function(i){ return i.checked; }).map(function(i){ return i.getAttribute("data-state"); }),
+      grade: document.getElementById("prefGrade").value,
       availabilityStart: document.getElementById("prefAvailFrom").value || null,
       availabilityEnd: document.getElementById("prefAvailTo").value || null
     };

@@ -12,6 +12,12 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 //     on the doctor's profile listing what changed, a Home task due today linked to the doctor,
 //     and an email. Returns the refreshed matching job list.
 //   - express_interest: records the click in job_interests and emails the job's recruiter.
+//   - stop_radar_emails / resume_radar_emails: the "Stop Jobs Radar emails" link in radar emails.
+//     Stops radar emails only (doctors.radar_unsubscribed); the jobs board is unaffected.
+//
+// Doctors also have location (pref_states, empty = anywhere) and grade (Consultant / Registrar /
+// CMO) preferences; jobs get a grade from their title (jobs_set_grade trigger). The first save
+// sets doctors.radar_saved_at, which takes the doctor out of all radar promotion emails.
 //
 // Jobs can come from the CRM (added by hand) or from the "TDN Job Board inbox sync" scheduled
 // task (source = 'Email alert', source_ref = the TDN-xxxx Job Board ID). Email-alert roles are
@@ -37,6 +43,14 @@ const FALLBACK_RECRUITER_EMAIL = "cydney@thedoctornetwork.com.au";
 
 const SPECIALTY_OPTIONS = ["Anesthetist","Emergency","Intensive Care","Medicine","Obstetrics and Gynaecology","Ophthalmology","Paediatrics","Psychiatry","Surgery","Radiographer","Radiology","General Practice"];
 const JOB_TYPE_OPTIONS = ["Contract","Locum","Permanent","Fixed Term"];
+const STATE_OPTIONS = ["NSW","VIC","QLD","SA","WA","TAS","NT","ACT"];
+const GRADE_OPTIONS = [
+  { value: "Consultant", label: "Consultant or specialist" },
+  { value: "Registrar", label: "Registrar or advanced trainee" },
+  { value: "CMO", label: "CMO or junior" }
+];
+const GRADE_VALUES = GRADE_OPTIONS.map(g => g.value);
+const SOURCE_RE = /^[a-z0-9_-]{1,30}$/;
 // Mirrors SUBSPECIALTY_MAP in the CRM's index.html - keep the two in sync.
 const SUBSPECIALTY_MAP: Record<string, string[]> = {
   "Psychiatry": ["Child & Adolescent Psychiatry","Perinatal & Infant Psychiatry","Forensic Psychiatry","Older Persons Psychiatry","Community Psychiatry","Addiction / Drug & Alcohol Psychiatry","Rehabilitation & Neuropsychiatry","Consultation-Liaison Psychiatry","Indigenous Mental Health","Mental Health","General Adult Psychiatry"]
@@ -132,6 +146,9 @@ function jobMatchesDoctor(job: any, doctor: any){
   if (doctor.sub_specialty && job.sub_specialty && job.sub_specialty !== doctor.sub_specialty) return false;
   const prefTypes: string[] = Array.isArray(doctor.pref_job_types) ? doctor.pref_job_types : [];
   if (prefTypes.length && job.job_type && prefTypes.indexOf(job.job_type) === -1) return false;
+  const prefStates: string[] = Array.isArray(doctor.pref_states) ? doctor.pref_states : [];
+  if (prefStates.length && job.region && prefStates.indexOf(String(job.region).toUpperCase()) === -1) return false;
+  if (doctor.grade && job.grade && doctor.grade !== job.grade) return false;
   if (doctor.pref_availability_start && doctor.pref_availability_end && job.start_date){
     const jobEnd = job.end_date || job.start_date;
     if (job.start_date > doctor.pref_availability_end) return false;
@@ -142,7 +159,7 @@ function jobMatchesDoctor(job: any, doctor: any){
 
 async function matchingJobsFor(admin: any, doctor: any){
   const { data: jobs } = await admin.from("jobs")
-    .select("id,title,hospital_id,specialty,sub_specialty,job_type,description,start_date,end_date,city,region,status,rate,created_at,recruiter_user_id")
+    .select("id,title,hospital_id,specialty,sub_specialty,job_type,description,start_date,end_date,city,region,status,rate,grade,created_at,recruiter_user_id")
     .eq("status", "Open");
   const list = (jobs || []).filter((j: any) => jobMatchesDoctor(j, doctor));
   const hospitalIds = Array.from(new Set(list.map((j: any) => j.hospital_id).filter(Boolean)));
@@ -174,7 +191,9 @@ function preferencesPayload(doctor: any){
     specialty: doctor.specialty || "", subSpecialty: doctor.sub_specialty || "",
     jobTypes: Array.isArray(doctor.pref_job_types) ? doctor.pref_job_types : [],
     availabilityStart: doctor.pref_availability_start || null, availabilityEnd: doctor.pref_availability_end || null,
-    specialtyOptions: SPECIALTY_OPTIONS, jobTypeOptions: JOB_TYPE_OPTIONS, subSpecialtyMap: SUBSPECIALTY_MAP
+    states: Array.isArray(doctor.pref_states) ? doctor.pref_states : [], grade: doctor.grade || "",
+    specialtyOptions: SPECIALTY_OPTIONS, jobTypeOptions: JOB_TYPE_OPTIONS, subSpecialtyMap: SUBSPECIALTY_MAP,
+    stateOptions: STATE_OPTIONS, gradeOptions: GRADE_OPTIONS
   };
 }
 
@@ -194,6 +213,12 @@ function describeChanges(before: any, after: any): string[] {
     if (removed.length) bits.push("removed " + removed.join(", "));
     out.push(`Job types: ${bits.join("; ")} (now ${newTypes.length ? newTypes.join(", ") : "any"})`);
   }
+  const oldStates: string[] = Array.isArray(before.pref_states) ? before.pref_states : [];
+  const newStates: string[] = Array.isArray(after.pref_states) ? after.pref_states : [];
+  if (oldStates.slice().sort().join(",") !== newStates.slice().sort().join(",")){
+    out.push(`Locations: ${oldStates.length ? oldStates.join(", ") : "anywhere"} → ${newStates.length ? newStates.join(", ") : "anywhere"}`);
+  }
+  if ((before.grade || "") !== (after.grade || "")) out.push(`Level: ${show(before.grade)} → ${show(after.grade)}`);
   const oldAv = (before.pref_availability_start || "") + "|" + (before.pref_availability_end || "");
   const newAv = (after.pref_availability_start || "") + "|" + (after.pref_availability_end || "");
   if (oldAv !== newAv){
@@ -234,11 +259,14 @@ async function sendDoctorConfirmation(admin: any, doctor: any, jobCount: number)
   const spec = [doctor.specialty, doctor.sub_specialty].filter(Boolean).join(", ") || "Any";
   const types: string[] = Array.isArray(doctor.pref_job_types) ? doctor.pref_job_types : [];
   const typeText = types.length ? types.join(", ") : "Any";
+  const st: string[] = Array.isArray(doctor.pref_states) ? doctor.pref_states : [];
+  const whereText = st.length ? st.join(", ") : "Anywhere in Australia";
+  const gradeText = (GRADE_OPTIONS.find(g => g.value === doctor.grade) || { label: "" }).label;
   const s = doctor.pref_availability_start, e = doctor.pref_availability_end;
   const avail = (s || e) ? `${s ? fmtDate(s) : "Now"} – ${e ? fmtDate(e) : "ongoing"}` : "Flexible";
   const radarUrl = `${CRM_BASE}job-radar.html?token=${encodeURIComponent(doctor.job_radar_token)}`;
   const boardUrl = jobsBoardUrlFor(doctor.specialty || "");
-  const unsubUrl = `${SUPABASE_URL}/functions/v1/unsubscribe?email=${encodeURIComponent(to.toLowerCase())}`;
+  const unsubUrl = `${radarUrl}&stop=1`;
   const matchLine = jobCount > 0
     ? `Right now, <strong>${jobCount} open role${jobCount === 1 ? "" : "s"}</strong> match what you're after.`
     : `Nothing matches just yet, but new roles come in every day and they'll show up on your radar as soon as they do.`;
@@ -253,6 +281,8 @@ async function sendDoctorConfirmation(admin: any, doctor: any, jobCount: number)
     `<ul style="padding-left:20px;margin:0 0 14px;">` +
       `<li><strong>Specialty:</strong> ${escapeHtml(spec)}</li>` +
       `<li><strong>Job type:</strong> ${escapeHtml(typeText)}</li>` +
+      `<li><strong>Where:</strong> ${escapeHtml(whereText)}</li>` +
+      (gradeText ? `<li><strong>Level:</strong> ${escapeHtml(gradeText)}</li>` : "") +
       `<li><strong>Available:</strong> ${escapeHtml(avail)}</li>` +
     `</ul>` +
     `<p>${matchLine}</p>` +
@@ -262,15 +292,15 @@ async function sendDoctorConfirmation(admin: any, doctor: any, jobCount: number)
     `<p>You can also browse every role on our <a href="${boardUrl}" style="color:#F76747;font-weight:bold;">jobs board</a>.</p>` +
     `<p>Thanks,<br>The Doctor Network Team<br><span style="color:#5B6B70;">Doctors are better connected.</span></p>` +
     `<hr style="border:none;border-top:1px solid #E7E3DA;margin:24px 0 12px;">` +
-    `<p style="font-size:12px;color:#5B6B70;">The Doctor Network &middot; <a href="${unsubUrl}" style="color:#5B6B70;">Unsubscribe</a></p>` +
+    `<p style="font-size:12px;color:#5B6B70;">The Doctor Network &middot; <a href="${unsubUrl}" style="color:#5B6B70;">Stop Jobs Radar emails</a></p>` +
     `</div>`;
   const text = `${greetingText}\n\nThanks for updating your job radar! Here's what we've got for you now:\n\n` +
-    `- Specialty: ${spec}\n- Job type: ${typeText}\n- Available: ${avail}\n\n${matchText}\n\n` +
+    `- Specialty: ${spec}\n- Job type: ${typeText}\n- Where: ${whereText}\n${gradeText ? "- Level: " + gradeText + "\n" : ""}- Available: ${avail}\n\n${matchText}\n\n` +
     `${jobCount > 0 ? "See your matching roles" : "Open your job radar"}: ${radarUrl}\n\n` +
     `New roles come in every day, so your radar keeps updating. If your plans change, you can update your preferences on the same link any time.\n\n` +
     `If one of these catches your eye, or you'd like to chat about what's out there, just hit reply.\n\n` +
     `You can also browse every role on our jobs board: ${boardUrl}\n\n` +
-    `Thanks,\nThe Doctor Network Team\nDoctors are better connected.\n\n---\nThe Doctor Network\nUnsubscribe: ${unsubUrl}`;
+    `Thanks,\nThe Doctor Network Team\nDoctors are better connected.\n\n---\nThe Doctor Network\nStop Jobs Radar emails: ${unsubUrl}`;
   const subject = "Your job radar is updated";
 
   try {
@@ -339,7 +369,15 @@ Deno.serve(async (req: Request) => {
   const { data: doctor } = await admin.from("doctors").select("*").eq("job_radar_token", token).maybeSingle();
   if (!doctor) return json({ error: "This link is invalid. Please ask The Doctor Network to resend it." }, 404);
 
+  const src = (url.searchParams.get("src") || "").trim().toLowerCase();
   if (req.method === "GET"){
+    const track: any = {};
+    if (!doctor.radar_first_opened_at) track.radar_first_opened_at = new Date().toISOString();
+    if (!doctor.radar_source && SOURCE_RE.test(src)) track.radar_source = src;
+    if (Object.keys(track).length){
+      await admin.from("doctors").update(track).eq("id", doctor.id);
+      Object.assign(doctor, track);
+    }
     const jobs = await matchingJobsFor(admin, doctor);
     return json({ ...preferencesPayload(doctor), jobs });
   }
@@ -356,11 +394,18 @@ Deno.serve(async (req: Request) => {
       const availabilityStart = body.availabilityStart ? String(body.availabilityStart) : null;
       const availabilityEnd = body.availabilityEnd ? String(body.availabilityEnd) : null;
       if (specialty && SPECIALTY_OPTIONS.indexOf(specialty) === -1) return json({ error: "That specialty isn't recognised." }, 400);
+      const states = Array.isArray(body.states) ? Array.from(new Set(body.states.map((x: any) => String(x).toUpperCase()).filter((x: string) => STATE_OPTIONS.indexOf(x) !== -1))) : (Array.isArray(doctor.pref_states) ? doctor.pref_states : []);
+      const grade = body.grade !== undefined ? (GRADE_VALUES.indexOf(String(body.grade)) !== -1 ? String(body.grade) : null) : (doctor.grade || null);
 
-      const { data: updated, error: updErr } = await admin.from("doctors").update({
+      const patch: any = {
         specialty: specialty || null, sub_specialty: subSpecialty || null,
-        pref_job_types: jobTypes, pref_availability_start: availabilityStart, pref_availability_end: availabilityEnd
-      }).eq("id", doctor.id).select("*").maybeSingle();
+        pref_job_types: jobTypes, pref_availability_start: availabilityStart, pref_availability_end: availabilityEnd,
+        pref_states: states, grade
+      };
+      if (!doctor.radar_saved_at) patch.radar_saved_at = new Date().toISOString();
+      if (!doctor.radar_source && SOURCE_RE.test(src)) patch.radar_source = src;
+      if (doctor.radar_unsubscribed) patch.radar_unsubscribed = false;
+      const { data: updated, error: updErr } = await admin.from("doctors").update(patch).eq("id", doctor.id).select("*").maybeSingle();
       if (updErr){ console.error("preference update failed", updErr); return json({ error: "We couldn't save your preferences right now. Please try again shortly." }, 500); }
 
       const jobs = await matchingJobsFor(admin, updated);
@@ -372,6 +417,21 @@ Deno.serve(async (req: Request) => {
         catch (e) { console.error("doctor confirmation failed", e); }
       }
       return json({ ok: true, ...preferencesPayload(updated), jobs });
+    }
+
+    if (action === "stop_radar_emails" || action === "resume_radar_emails"){
+      const stop = action === "stop_radar_emails";
+      if (Boolean(doctor.radar_unsubscribed) !== stop){
+        await admin.from("doctors").update({ radar_unsubscribed: stop }).eq("id", doctor.id);
+        try {
+          await admin.from("notes").insert({
+            id: randomId("note_radar"), linked_type: "doctor", linked_id: doctor.id, note_type: "Update",
+            text: stop ? "Stopped Jobs Radar emails (jobs board emails unaffected)." : "Turned Jobs Radar emails back on.",
+            date: new Date().toISOString(), created_by: "Job radar"
+          });
+        } catch (e) { console.error("note insert failed", e); }
+      }
+      return json({ ok: true, radarUnsubscribed: stop });
     }
 
     if (action === "express_interest"){
