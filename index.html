@@ -913,7 +913,7 @@ function credentialCategoryStatus(docs){
 }
 
 var uiFilters = {
-  doctors: { name:"", mobile:"", specialty:"", subSpecialty:"", location:"", email:"", position:"", recruiter:"", source:"", sortDir:"asc", page:1 },
+  doctors: { name:"", mobile:"", specialty:"", subSpecialty:"", location:"", email:"", position:"", recruiter:"", source:"", radar:"all", sortDir:"asc", page:1 },
   hospitals: { name:"", contact:"", location:"", recruiter:"", type:"", specialty:"", subSpecialty:"", page:1 },
   jobs: { title:"", hospital:"", specialty:"", location:"", status:"Open", recruiter:"", source:"all", limit:100 },
   placements: { doctor:"", hospital:"", status:"all" },
@@ -1470,6 +1470,11 @@ function rowToDoctor(r){
     // prefJobTypes/prefAvailability* mirror whatever they last saved on their preferences.
     jobRadarToken: r.job_radar_token||"", prefJobTypes: r.pref_job_types||[],
     prefAvailabilityStart: r.pref_availability_start||"", prefAvailabilityEnd: r.pref_availability_end||"",
+    prefStates: r.pref_states||[], grade: r.grade||"",
+    // radarSavedAt = first time they saved preferences: they're then left out of every Jobs Radar
+    // promotion email. radarUnsubscribed = they used "Stop Jobs Radar emails" (jobs board unaffected).
+    radarSavedAt: r.radar_saved_at||"", radarFirstOpenedAt: r.radar_first_opened_at||"",
+    radarSource: r.radar_source||"", radarUnsubscribed: !!r.radar_unsubscribed,
     // Email blocking - excludes this doctor from all CRM email send-outs and masks their
     // address in the UI, while the address itself stays intact underneath. Set in bulk (not via
     // the add/edit form); updateDoctor() never touches these, so they round-trip untouched.
@@ -4276,7 +4281,8 @@ function renderDoctorsList(){
       (!f.email || (d.email||"").toLowerCase().indexOf(f.email.toLowerCase())>=0) &&
       (!f.position || (d.position||"").toLowerCase().indexOf(f.position.toLowerCase())>=0) &&
       (!f.recruiter || (d.recruiter||"").toLowerCase().indexOf(f.recruiter.toLowerCase())>=0) &&
-      (!f.source || (d.source||"").toLowerCase().indexOf(f.source.toLowerCase())>=0);
+      (!f.source || (d.source||"").toLowerCase().indexOf(f.source.toLowerCase())>=0) &&
+      (!f.radar || f.radar === "all" || (f.radar === "saved" ? !!d.radarSavedAt : !d.radarSavedAt));
   });
   list.sort(function(a,b){
     var r = (a.name||"").localeCompare(b.name||"");
@@ -4285,6 +4291,15 @@ function renderDoctorsList(){
 
   var html = '<div class="page-head"><div><h1>Doctors</h1><div class="sub">'+filteredCountLabel(list.length, state.doctors.length)+'</div></div>'+
     '<button class="btn btn-primary" data-action="open-add-doctor" type="button">+ New doctor</button></div>';
+
+  var savedCount = state.doctors.filter(function(d){ return !!d.radarSavedAt; }).length;
+  var radarF = f.radar || "all";
+  html += '<div class="pill-filter" style="margin-bottom:14px;" id="doctor-radar-filter">'+
+    '<span style="font-size:12px;color:var(--ink-400);margin-right:6px;align-self:center;">Jobs Radar:</span>'+
+    '<button type="button" data-radar="all" class="'+(radarF==="all"?"active":"")+'">All</button>'+
+    '<button type="button" data-radar="saved" class="'+(radarF==="saved"?"active":"")+'">Saved preferences ('+savedCount+')</button>'+
+    '<button type="button" data-radar="notsaved" class="'+(radarF==="notsaved"?"active":"")+'">Not saved yet</button>'+
+  '</div>';
 
   if (selCount > 0){
     html += '<div class="bulk-bar"><span class="count">'+selCount+' selected</span><span class="spacer"></span>'+
@@ -4453,11 +4468,21 @@ function doctorCampaignsPanelHtml(d){
 function jobRadarPanelHtml(d){
   var jobTypesLabel = (d.prefJobTypes && d.prefJobTypes.length) ? d.prefJobTypes.join(", ") : "Any";
   var availLabel = (d.prefAvailabilityStart && d.prefAvailabilityEnd) ? (fmtDate(d.prefAvailabilityStart)+" - "+fmtDate(d.prefAvailabilityEnd)) : "Not set";
+  var statesLabel = (d.prefStates && d.prefStates.length) ? d.prefStates.join(", ") : "Anywhere";
+  var gradeLabels = { Consultant: "Consultant or specialist", Registrar: "Registrar or advanced trainee", CMO: "CMO or junior" };
+  var gradeLabel = gradeLabels[d.grade] || "Not set";
+  var radarStatus = d.radarSavedAt
+    ? '<span class="stage-pill" style="background:var(--green-100,#E3EEEB);color:var(--green-700,#1F574C);">Saved preferences on '+escapeHtml(fmtDate(String(d.radarSavedAt).slice(0,10)))+'</span> <span style="font-size:12px;color:var(--ink-400);">Left out of all Jobs Radar promotion emails.</span>'
+    : '<span class="stage-pill" style="background:var(--amber-100);color:var(--amber-600);">Not saved yet</span> <span style="font-size:12px;color:var(--ink-400);">'+(d.radarUnsubscribed ? '' : 'Will get Jobs Radar promotion emails.')+'</span>';
+  if (d.radarUnsubscribed) radarStatus += '<div style="font-size:12px;color:var(--rust-600,#B4553F);margin-top:6px;">Stopped Jobs Radar emails (still gets the jobs board).</div>';
   var html = '<div class="panel" style="margin-top:16px;"><h2>Job radar<button type="button" class="btn-icon" data-action="copy-job-radar-link" data-id="'+d.id+'" title="Copy their personal job radar link" aria-label="Copy job radar link">&#128279;</button></h2>'+
     '<div class="note-box" style="margin-bottom:12px;">This is '+escapeHtml(d.name)+'\'s personal link to browse vacancies matching their preferences and register interest - copy it to send in an email or text. Updating their preferences there also updates their Specialty/Sub-specialty above.</div>'+
     '<div class="field-grid">'+
       '<div class="field-item"><label>Job type preference</label><div class="val">'+escapeHtml(jobTypesLabel)+'</div></div>'+
       '<div class="field-item"><label>Availability</label><div class="val">'+escapeHtml(availLabel)+'</div></div>'+
+      '<div class="field-item"><label>Locations</label><div class="val">'+escapeHtml(statesLabel)+'</div></div>'+
+      '<div class="field-item"><label>Level</label><div class="val">'+escapeHtml(gradeLabel)+'</div></div>'+
+      '<div class="field-item full"><label>Status</label><div class="val">'+radarStatus+'</div></div>'+
     '</div></div>';
 
   var interests = interestsForDoctor(d.id);
@@ -7178,6 +7203,8 @@ document.addEventListener("click", function(e){
 
   var stageFilterBtn = e.target.closest ? e.target.closest("#job-status-filter button") : null;
   if (stageFilterBtn){ uiFilters.jobs.status = stageFilterBtn.getAttribute("data-status"); uiFilters.jobs.limit = 100; render(); return; }
+  var radarFilterBtn = e.target.closest ? e.target.closest("#doctor-radar-filter button") : null;
+  if (radarFilterBtn){ uiFilters.doctors.radar = radarFilterBtn.getAttribute("data-radar"); uiFilters.doctors.page = 1; render(); return; }
   var sourceFilterBtn = e.target.closest ? e.target.closest("#job-source-filter button") : null;
   if (sourceFilterBtn){ uiFilters.jobs.source = sourceFilterBtn.getAttribute("data-source"); uiFilters.jobs.limit = 100; render(); return; }
   var placementFilterBtn = e.target.closest ? e.target.closest("#placement-status-filter button") : null;
