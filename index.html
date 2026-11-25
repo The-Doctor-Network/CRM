@@ -11,15 +11,15 @@
 <style>
 :root{
   --paper-0:#FFFFFF;
-  --paper-50:#F6F8FD;
-  --paper-100:#EAF0FB;
-  --line:#E1E7F2;
-  --ink-900:#202A3A;
-  --ink-600:#57607A;
-  --ink-400:#8890A6;
-  --teal-700:#0F766E;
-  --teal-600:#14B8A6;
-  --teal-100:#CCFBF1;
+  --paper-50:#F7F7F4;
+  --paper-100:#EFEFEA;
+  --line:#E4E4DD;
+  --ink-900:#1F2A24;
+  --ink-600:#58625C;
+  --ink-400:#8A938D;
+  --teal-700:#244A37;
+  --teal-600:#2F5D46;
+  --teal-100:#E5EEE8;
   --amber-600:#D97706;
   --amber-100:#FEF3C7;
   --rust-600:#E11D48;
@@ -29,8 +29,8 @@
   --slate-100:#EEF1F7;
   --slate-600:#667085;
   --on-accent:#FFFFFF;
-  --accent-a:#14B8A6;
-  --accent-b:#8B5CF6;
+  --accent-a:#2F5D46;
+  --accent-b:#4F7F64;
   --shadow: 0 1px 2px rgba(32,42,58,0.06), 0 6px 20px rgba(32,42,58,0.08);
   color-scheme: light;
 }
@@ -147,6 +147,79 @@ input,select,textarea{font-family:inherit; font-size:inherit;}
 .nav a.active{background:var(--teal-100); color:var(--teal-700); font-weight:600;}
 .nav .dot{width:6px;height:6px;border-radius:50%; background:currentColor; opacity:0.55; flex:0 0 auto;}
 .rail-foot{margin-top:auto; display:flex; flex-direction:column; gap:10px;}
+.rail{gap:16px; width:232px; flex-basis:232px; background:#FBFBF9;}
+.rail-brand{display:flex; flex-direction:column; align-items:flex-start; text-decoration:none; padding:2px 8px 4px;}
+.rail .logo1{padding:0; justify-content:flex-start;}
+.rail .logo1 .row{font-size:1.25rem; color:var(--teal-700);}
+.rail .logo1 .arc path{stroke:var(--teal-700);}
+.rail-brand-sub{font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-400); margin-top:6px; font-weight:600;}
+.nav-section{font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-400); font-weight:600; padding:14px 10px 6px;}
+.nav-section:first-child{padding-top:0;}
+.nav a{gap:11px; padding:8px 10px;}
+.nav-ico{width:18px; height:18px; flex:0 0 auto; opacity:.85;}
+.nav a.active .nav-ico{opacity:1;}
+.nav-label{flex:1; min-width:0;}
+.nav-count{font-size:11.5px; color:var(--ink-400); font-variant-numeric:tabular-nums;}
+.nav a.active .nav-count{color:var(--teal-700);}
+.rail-foot .nav-ico, .rail-foot a{display:flex; align-items:center; gap:11px;}
+.rail-foot > a{padding:8px 10px; border-radius:8px; color:var(--ink-600); text-decoration:none; font-weight:500; font-size:13.5px;}
+.rail-foot > a.active{background:var(--teal-100); color:var(--teal-700); font-weight:600;}
+.crumbs{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-900); font-weight:600;}
+.crumbs a{color:var(--ink-400); text-decoration:none; font-weight:500;}
+.crumb-sep{color:var(--ink-400);}
+.topbar-left{display:flex; align-items:center; gap:6px;}
+.topbar-right .menu-wrap{display:flex; align-items:center; gap:12px;}
+.avatar{width:34px; height:34px; border-radius:50%; background:#EAE6D9; color:var(--ink-600); display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700;}
+.ov-hero{display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin:6px 0 24px;}
+.ov-eyebrow{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--teal-600); font-weight:700; margin-bottom:10px;}
+.ov-title{font-size:34px; line-height:1.1; letter-spacing:-.02em; margin:0 0 10px; font-weight:700;}
+.ov-sub{color:var(--ink-600); font-size:14.5px;}
+.btn-ico{width:16px; height:16px;}
+.ov-stats{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:18px;}
+.ov-stat{display:flex; flex-direction:column; gap:6px; padding:18px 18px 16px; background:var(--paper-0); border:1px solid var(--line); border-radius:14px; text-decoration:none; color:inherit; transition:border-color .15s, box-shadow .15s;}
+.ov-stat:hover{border-color:var(--teal-600); box-shadow:var(--shadow);}
+.ov-stat-head{display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--ink-600); font-weight:500;}
+.ov-ico{width:20px; height:20px; color:var(--ink-400);}
+.ov-stat-value{font-size:38px; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums; margin-top:8px;}
+.ov-stat-sub{font-size:11.5px; color:var(--ink-400);}
+.ov-warn{color:var(--rust-600); font-weight:600;}
+.ov-grid{display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:16px; margin-bottom:16px; align-items:start;}
+.ov-card{background:var(--paper-0); border:1px solid var(--line); border-radius:14px; padding:20px 22px; display:flex; flex-direction:column;}
+.ov-card-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px;}
+.ov-card-head h2{margin:0 0 3px; font-size:17px;}
+.ov-card-sub{font-size:12.5px; color:var(--ink-400);}
+.ov-link{display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:600; color:var(--teal-600); text-decoration:none; white-space:nowrap;}
+.ov-arrow{width:13px; height:13px;}
+.ov-card-foot{border-top:1px solid var(--line); margin:14px -22px -20px; padding:12px 22px; display:flex; justify-content:space-between;}
+.ov-empty{display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; padding:26px 0 18px;}
+.ov-empty-ico{width:28px; height:28px; color:var(--ink-400); margin-bottom:4px;}
+.ov-empty-title{font-weight:700; font-size:15px;}
+.ov-empty .btn{margin-top:10px;}
+.ov-empty-sm{font-size:13px; color:var(--ink-400); padding:8px 0;}
+.ov-tasks .task-row{padding:9px 0; border-bottom:1px solid var(--line);}
+.ov-tasks .task-row:last-child{border-bottom:none;}
+.ov-pipe{display:flex; flex-direction:column; gap:6px;}
+.ov-pipe-row{display:grid; grid-template-columns:110px 1fr 28px; align-items:center; gap:10px; padding:8px 0; text-decoration:none; color:var(--ink-900); font-size:13.5px;}
+.ov-pipe-label{display:flex; align-items:center; gap:9px;}
+.ov-sq{width:9px; height:9px; border-radius:2px; background:#B8C2BC;}
+.ov-sq.ad-available, .ov-bar-fill.ad-available{background:#4F8C6A;}
+.ov-sq.ad-submitted, .ov-bar-fill.ad-submitted{background:#C98A2E;}
+.ov-sq.ad-placed, .ov-bar-fill.ad-placed{background:var(--teal-700);}
+.ov-bar{height:6px; border-radius:999px; background:var(--paper-100); overflow:hidden;}
+.ov-bar-fill{display:block; height:100%; border-radius:999px; background:#B8C2BC; min-width:0;}
+.ov-pipe-n{text-align:right; font-weight:700; font-variant-numeric:tabular-nums;}
+.ov-list{display:flex; flex-direction:column;}
+.ov-row{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; cursor:pointer;}
+.ov-row:last-child{border-bottom:none;}
+.ov-row:hover .ov-row-title{color:var(--teal-600);}
+.ov-row-title{font-weight:600; font-size:13.5px;}
+.ov-row-sub{font-size:12px; color:var(--ink-400); margin-top:2px;}
+.ov-row-right{font-size:12px; color:var(--ink-600); white-space:nowrap; font-variant-numeric:tabular-nums;}
+.main .topbar{grid-template-columns:1fr auto; padding:14px 28px;}
+.rail .logo1 .row{font-size:1.12rem;}
+@media (max-width: 900px){ .ov-grid{grid-template-columns:1fr;} .ov-title{font-size:28px;} }
+@media (max-width: 560px){ .ov-stats{grid-template-columns:1fr 1fr; gap:10px;} .ov-stat{padding:14px;} .ov-stat-value{font-size:30px; margin-top:2px;} .crumbs a, .crumb-sep{display:none;} }
+
 .viewer-field label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-400); margin-bottom:4px;}
 .viewer-field input{width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:7px; background:var(--paper-0); color:var(--ink-900);}
 .access-note{font-size:11.5px; color:var(--ink-400); line-height:1.4;}
@@ -321,7 +394,7 @@ td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
 .ad-pill.ad-new{background:#ECEDEF; color:#4A515B;}
 .ad-pill.ad-available{background:#E1F3EA; color:#22764C;}
 .ad-pill.ad-submitted{background:#FDF0DC; color:#9A5B0C;}
-.ad-pill.ad-placed{background:#E3EEFB; color:#245EA8;}
+.ad-pill.ad-placed{background:#DDE8E1; color:#244A37;}
 .ad-add{border:1px dashed var(--line); background:none; border-radius:10px; padding:8px; font:inherit; font-size:12.5px; color:var(--ink-400); cursor:pointer;}
 .ad-add:hover{color:var(--teal-700); border-color:var(--teal-600);}
 .ad-profile{display:flex; align-items:center; flex-wrap:wrap; gap:6px;}
@@ -3109,8 +3182,9 @@ function goBack(){
 
 /* ---------- shell ---------- */
 
-function navItem(hash, label, active){
-  return '<a href="'+hash+'" class="'+(active?"active":"")+'"><span class="dot"></span>'+label+'</a>';
+function navItem(hash, label, active, icon, count){
+  return '<a href="'+hash+'" class="'+(active?"active":"")+'">'+(icon ? navIcon(icon) : '<span class="dot"></span>')+'<span class="nav-label">'+label+'</span>'+
+    (count !== undefined && count !== null ? '<span class="nav-count">'+count+'</span>' : '')+'</a>';
 }
 
 function searchIndex(q){
@@ -3138,34 +3212,39 @@ function renderShell(bodyHtml, activeKey){
   return ''+
   '<div class="shell">'+
     '<div class="rail">'+
+      '<a class="rail-brand" href="#/home">'+TDN_LOGO_HTML+'<span class="rail-brand-sub">Operations workspace</span></a>'+
       '<div class="side-search">'+
         '<input type="text" id="side-search-input" placeholder="Search doctors, hospitals, clients..." autocomplete="off" />'+
         '<div class="side-results" id="side-results"></div>'+
       '</div>'+
       '<div class="nav">'+
-        navItem("#/home","Home", activeKey==="home")+
-        navItem("#/doctors","Doctors", activeKey==="doctors")+
-        navItem("#/active","Active Doctors", activeKey==="active")+
-        navItem("#/folders","Folders", activeKey==="folders")+
-        navItem("#/hospitals","Hospitals", activeKey==="hospitals")+
-        navItem("#/clients","Clients", activeKey==="clients")+
-        navItem("#/campaigns","Campaigns", activeKey==="campaigns")+
-        navItem("#/jobs","Jobs", activeKey==="jobs")+
-        navItem("#/placements","Placements", activeKey==="placements")+
-        navItem("#/revenue","Revenue Tracker", activeKey==="revenue")+
-        navItem("#/timesheets","Timesheets", activeKey==="timesheets")+
-        navItem("#/invoices","Invoices", activeKey==="invoices")+
+        '<div class="nav-section">Workspace</div>'+
+        navItem("#/home","Overview", activeKey==="home", "home")+
+        navItem("#/tasks","Tasks", activeKey==="tasks", "tasks", openTaskCount())+
+        navItem("#/doctors","Doctors", activeKey==="doctors", "doctors")+
+        navItem("#/active","Active Doctors", activeKey==="active", "active", state.activeDoctors.length)+
+        navItem("#/folders","Folders", activeKey==="folders", "folders")+
+        navItem("#/jobs","Vacancies", activeKey==="jobs", "jobs", liveJobs().length)+
+        navItem("#/hospitals","Hospitals", activeKey==="hospitals", "hospitals")+
+        navItem("#/clients","Clients", activeKey==="clients", "clients")+
+        navItem("#/campaigns","Campaigns", activeKey==="campaigns", "campaigns")+
+        '<div class="nav-section">Bookings &amp; finance</div>'+
+        navItem("#/placements","Placements", activeKey==="placements", "placements")+
+        navItem("#/timesheets","Timesheets", activeKey==="timesheets", "timesheets")+
+        navItem("#/invoices","Invoices", activeKey==="invoices", "invoices")+
+        navItem("#/revenue","Revenue Tracker", activeKey==="revenue", "revenue")+
       '</div>'+
       '<div class="rail-foot">'+
-        navItem("#/settings","Settings", activeKey==="settings")+
+        navItem("#/settings","Settings", activeKey==="settings", "settings")+
         accountNote+
       '</div>'+
     '</div>'+
     '<div class="main">'+
       '<div class="topbar">'+
-        '<div class="topbar-left"><button class="btn btn-ghost btn-back" type="button" data-action="go-back" aria-label="Back">&larr; Back</button></div>'+
-        TDN_LOGO_HTML+
+        '<div class="topbar-left"><button class="btn btn-ghost btn-back" type="button" data-action="go-back" aria-label="Back">&larr;</button>'+
+          '<div class="crumbs"><a href="#/home">Workspace</a><span class="crumb-sep">&rsaquo;</span><span>'+escapeHtml(PAGE_TITLES[activeKey] || "")+'</span></div></div>'+
         '<div class="topbar-right"><div class="menu-wrap">'+
+          '<span class="avatar" title="'+escapeHtml(getViewerName())+'">'+escapeHtml(initials((state.mySettings && state.mySettings.displayName) || getViewerName() || "?"))+'</span>'+
           '<button class="btn btn-primary" id="new-menu-btn" type="button">+ New</button>'+
           '<div class="menu" id="new-menu">'+
             '<button type="button" data-action="open-add-doctor">New doctor</button>'+
@@ -3183,6 +3262,119 @@ function renderShell(bodyHtml, activeKey){
   '<datalist id="recruiter-list">'+recruiterOptions+'</datalist>'+
   '<div class="toast-wrap" id="toast-wrap"></div>'+
   (quickView ? quickViewPanelHtml(quickView.type, quickView.id) : "");
+}
+
+/* ---------- Overview (home) ---------- */
+
+var NAV_ICONS = {
+  home: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  doctors: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  active: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/>',
+  folders: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>',
+  hospitals: '<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M12 4v4M10 14h4M10 18h4"/>',
+  clients: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16a2 2 0 0 1 4 0"/>',
+  campaigns: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  jobs: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  placements: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+  revenue: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  timesheets: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  invoices: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8M12 17.5v-11"/>',
+  tasks: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  pulse: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  arrow: '<path d="M7 17 17 7M7 7h10v10"/>'
+};
+function navIcon(name, cls){
+  return '<svg class="'+(cls||"nav-ico")+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(NAV_ICONS[name]||"")+'</svg>';
+}
+var PAGE_TITLES = { home:"Overview", doctors:"Doctors", active:"Active Doctors", folders:"Folders", hospitals:"Hospitals", clients:"Clients",
+  campaigns:"Campaigns", jobs:"Jobs", placements:"Placements", revenue:"Revenue Tracker", timesheets:"Timesheets", invoices:"Invoices", tasks:"Tasks", settings:"Settings" };
+
+function openTaskCount(){
+  var horizon = addDaysISO(todayISO(), 7);
+  return state.tasks.filter(function(t){ return !t.done && t.dueDate <= horizon; }).length;
+}
+function liveJobs(){ return state.jobs.filter(function(j){ return (j.status || "Open") === "Open"; }); }
+
+function renderOverview(){
+  var today = todayISO(), horizon = addDaysISO(today, 7);
+  var monthStart = today.slice(0,7) + "-01";
+  var newThisMonth = state.doctors.filter(function(d){ return d.createdAt && new Date(d.createdAt).toISOString().slice(0,10) >= monthStart; }).length;
+  var available = state.activeDoctors.filter(function(a){ return a.status === "Available" && findDoctor(a.doctorId); });
+  var jobs = liveJobs();
+  var locumJobs = jobs.filter(function(j){ return /locum/i.test(j.jobType || ""); }).length;
+  var due = state.tasks.filter(function(t){ return !t.done && t.dueDate <= horizon; }).sort(function(a,b){ return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0; });
+  var overdue = due.filter(function(t){ return t.dueDate < today; }).length;
+  var dueToday = due.filter(function(t){ return t.dueDate === today; }).length;
+
+  var stat = function(href, label, icon, value, sub){
+    return '<a class="ov-stat" href="'+href+'"><div class="ov-stat-head"><span>'+label+'</span>'+navIcon(icon, "ov-ico")+'</div>'+
+      '<div class="ov-stat-value">'+value+'</div><div class="ov-stat-sub">'+sub+'</div></a>';
+  };
+  var html = '<div class="ov-hero"><div><div class="ov-eyebrow">The Doctor Network</div><h1 class="ov-title">Your network. In focus.</h1>'+
+    '<div class="ov-sub">A clear view of your doctors, vacancies and next steps.</div></div>'+
+    '<div class="action-row"><button class="btn" type="button" data-action="open-add-placement">'+navIcon("placements","btn-ico")+'New placement</button>'+
+    '<button class="btn btn-primary" type="button" data-action="open-add-task">+ New task</button></div></div>';
+
+  html += '<div class="ov-stats">'+
+    stat("#/doctors", "Doctor database", "doctors", state.doctors.length.toLocaleString("en-AU"), newThisMonth ? (newThisMonth + " added this month") : "All doctors in the CRM")+
+    stat("#/active", "Doctors available", "active", available.length, state.activeDoctors.length + " active doctor" + (state.activeDoctors.length===1?"":"s") + " in total")+
+    stat("#/jobs", "Live vacancies", "jobs", jobs.length, jobs.length ? (locumJobs + " locum &middot; " + (jobs.length - locumJobs) + " other") : "Open locum & permanent roles")+
+    stat("#/tasks", "Actions due", "calendar", due.length, (overdue ? '<span class="ov-warn">' + overdue + ' overdue</span> &middot; ' : "") + dueToday + " today &middot; next 7 days")+
+  '</div>';
+
+  // Next up
+  var next = '<div class="ov-card"><div class="ov-card-head"><div><h2>Next up</h2><div class="ov-card-sub">Your follow-ups and time-sensitive actions</div></div>'+
+    '<a class="ov-link" href="#/tasks">All tasks '+navIcon("arrow","ov-arrow")+'</a></div>';
+  if (!due.length){
+    next += '<div class="ov-empty">'+navIcon("tasks","ov-empty-ico")+'<div class="ov-empty-title">A clear runway</div><div class="ov-card-sub">Nothing due in the next 7 days.</div>'+
+      '<button class="btn btn-sm" type="button" data-action="open-add-task">Create a follow-up</button></div>';
+  } else {
+    next += '<div class="ov-tasks">'+due.slice(0, 7).map(function(t){ return taskRowHtml(t, today); }).join("")+'</div>'+
+      (due.length > 7 ? '<div class="ov-card-foot"><a class="ov-link" href="#/tasks">+ '+(due.length-7)+' more</a></div>' : '');
+  }
+  next += '</div>';
+
+  // Placement pipeline (from Active Doctors)
+  var counts = {}; ACTIVE_STATUSES.forEach(function(s){ counts[s] = 0; });
+  state.activeDoctors.forEach(function(a){ if (findDoctor(a.doctorId) && counts[a.status] !== undefined) counts[a.status]++; });
+  var max = Math.max.apply(null, ACTIVE_STATUSES.map(function(s){ return counts[s]; }).concat([1]));
+  var pipe = '<div class="ov-card"><div class="ov-card-head"><div><h2>Placement pipeline</h2><div class="ov-card-sub">From new doctor to placed</div></div>'+navIcon("pulse","ov-ico")+'</div>'+
+    '<div class="ov-pipe">'+ACTIVE_STATUSES.map(function(s){
+      return '<a class="ov-pipe-row" href="#/active"><span class="ov-pipe-label"><span class="ov-sq '+ACTIVE_STATUS_CLASS[s]+'"></span>'+s+'</span>'+
+        '<span class="ov-bar"><span class="ov-bar-fill '+ACTIVE_STATUS_CLASS[s]+'" style="width:'+Math.round(counts[s]/max*100)+'%"></span></span><span class="ov-pipe-n">'+counts[s]+'</span></a>';
+    }).join("")+'</div>'+
+    '<div class="ov-card-foot"><a class="ov-link" href="#/active">Open Active Doctors '+navIcon("arrow","ov-arrow")+'</a></div></div>';
+
+  html += '<div class="ov-grid">'+next+pipe+'</div>';
+
+  // Doctors available + live vacancies
+  var avList = available.slice().sort(function(a,b){ return (a.availableFrom||"9999") < (b.availableFrom||"9999") ? -1 : 1; }).slice(0, 6);
+  var avCard = '<div class="ov-card"><div class="ov-card-head"><div><h2>Doctors available</h2><div class="ov-card-sub">Soonest availability first</div></div>'+
+    '<a class="ov-link" href="#/active">View all '+navIcon("arrow","ov-arrow")+'</a></div>';
+  if (!avList.length) avCard += '<div class="ov-empty-sm">No doctors marked Available yet. Move doctors to Available in Active Doctors.</div>';
+  else avCard += '<div class="ov-list">'+avList.map(function(a){
+    var d = findDoctor(a.doctorId);
+    return '<div class="ov-row" data-action="quick-view-doctor" data-id="'+d.id+'"><div><div class="ov-row-title">'+escapeHtml(d.name)+'</div>'+
+      '<div class="ov-row-sub">'+escapeHtml([ (d.subSpecialty||"").replace(/ Psychiatry$/,""), a.location ].filter(Boolean).join(" · ") || (d.position||""))+'</div></div>'+
+      '<div class="ov-row-right">'+(activeDatesText(a) || "Now")+'</div></div>';
+  }).join("")+'</div>';
+  avCard += '</div>';
+
+  var jobList = jobs.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); }).slice(0, 6);
+  var jobCard = '<div class="ov-card"><div class="ov-card-head"><div><h2>Live vacancies</h2><div class="ov-card-sub">Open roles, newest first</div></div>'+
+    '<a class="ov-link" href="#/jobs">View all '+navIcon("arrow","ov-arrow")+'</a></div>';
+  if (!jobList.length) jobCard += '<div class="ov-empty-sm">No open jobs.</div>';
+  else jobCard += '<div class="ov-list">'+jobList.map(function(j){
+    var h = j.hospitalId ? findHospital(j.hospitalId) : null;
+    return '<a class="ov-row" href="#/jobs/'+j.id+'"><div><div class="ov-row-title">'+escapeHtml(j.title || "Job")+'</div>'+
+      '<div class="ov-row-sub">'+escapeHtml([h ? h.name : "", j.city || j.region || ""].filter(Boolean).join(" · "))+'</div></div>'+
+      '<div class="ov-row-right">'+escapeHtml(j.jobType || "")+'</div></a>';
+  }).join("")+'</div>';
+  jobCard += '</div>';
+  html += '<div class="ov-grid">'+avCard+jobCard+'</div>';
+  return html;
 }
 
 /* ---------- Active Doctors (pipeline of doctors being actively worked) ---------- */
@@ -6863,7 +7055,8 @@ function render(){
   var route = currentRoute();
   var key = route[0] || "home";
   var body;
-  if (key === "home" || key === ""){ body = renderHome(); key="home"; }
+  if (key === "home" || key === ""){ body = renderOverview(); key="home"; }
+  else if (key === "tasks"){ body = renderHome(); }
   else if (key === "doctors" && route[1]){ body = renderDoctorDetail(route[1], route[2]); }
   else if (key === "doctors"){ body = renderDoctorsList(); }
   else if (key === "folders" && route[1]){ body = renderFolderDetail(route[1]); }
