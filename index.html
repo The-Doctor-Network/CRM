@@ -420,6 +420,15 @@ td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
 .form-row .ad-spec-opt{display:inline-flex !important; flex-direction:row; align-items:center; margin:0 !important; white-space:nowrap;}
 .form-row .ad-spec-opt input{width:14px !important; flex:0 0 14px; padding:0;}
 .ad-tag{white-space:nowrap;}
+.conf-row{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--line);}
+.conf-label{font-weight:700; font-size:13.5px; margin-bottom:2px;}
+.conf-status{font-size:12.5px; color:var(--ink-400);}
+.conf-status.conf-ok{color:#22764C; font-weight:600;}
+.conf-status.conf-wait{color:#9A5B0C;}
+.conf-toolbar{display:flex; gap:6px; margin-bottom:6px;}
+.conf-editor{border:1px solid var(--line); border-radius:10px; padding:14px 16px; min-height:320px; max-height:52vh; overflow-y:auto; background:var(--paper-0); font-size:13.5px; line-height:1.55;}
+.conf-editor:focus{outline:2px solid var(--teal-600); outline-offset:1px;}
+.conf-editor p{margin:0 0 10px;}
 .ad-profile{display:flex; align-items:center; flex-wrap:wrap; gap:6px;}
 .rev-footnote{font-size:12px; color:var(--ink-400); margin-top:14px; max-width:820px;}
 .rev-mini{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
@@ -875,7 +884,7 @@ var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var state = {
   doctors: [], hospitals: [], clients: [], jobs: [], placements: [], notes: [],
   documents: [], tasks: [], timesheets: [], invoices: [], emailTemplates: [], sentEmails: [], crmUsers: [], jobInterests: [],
-  campaigns: [], campaignRecipients: [], candidateAgreements: [], clientSurveys: [], folders: [], folderMembers: [], activeDoctors: [],
+  campaigns: [], campaignRecipients: [], candidateAgreements: [], clientSurveys: [], folders: [], folderMembers: [], activeDoctors: [], placementConfirmations: [],
   ui: { lastHash: "" },
   meta: { seq: 1, invoiceSeq: 1000 },
   settings: { agency: {
@@ -1952,6 +1961,8 @@ function placementToRow(p){
     perm_salary: numOrNull(p.permSalary), perm_fee_percent: numOrNull(p.permFeePercent),
     booking_route: p.bookingRoute||null, split_agency_name: p.splitAgencyName||null, tdn_split_percent: numOrNull(p.tdnSplitPercent),
     second_recruiter_user_id: p.secondRecruiterUserId||null, second_recruiter_percent: numOrNull(p.secondRecruiterPercent),
+    travel_notes: p.travelNotes||null, vehicle_notes: p.vehicleNotes||null, accommodation_notes: p.accommodationNotes||null,
+    agency_fee_text: p.agencyFeeText||null, client_contact_name: p.clientContactName||null, client_contact_email: p.clientContactEmail||null,
     days_of_week: p.daysOfWeek||[], split_fees: p.splitFees||[], custom_fields: p.customFields||{},
     created_at: new Date(p.createdAt||Date.now()).toISOString(),
     updated_at: new Date(p.updatedAt||Date.now()).toISOString()
@@ -1986,6 +1997,8 @@ function rowToPlacement(r){
     permSalary: numStr(r.perm_salary), permFeePercent: numStr(r.perm_fee_percent),
     bookingRoute: r.booking_route||"", splitAgencyName: r.split_agency_name||"", tdnSplitPercent: numStr(r.tdn_split_percent),
     secondRecruiterUserId: r.second_recruiter_user_id||"", secondRecruiterPercent: numStr(r.second_recruiter_percent),
+    travelNotes: r.travel_notes||"", vehicleNotes: r.vehicle_notes||"", accommodationNotes: r.accommodation_notes||"",
+    agencyFeeText: r.agency_fee_text||"", clientContactName: r.client_contact_name||"", clientContactEmail: r.client_contact_email||"",
     daysOfWeek: r.days_of_week||[], splitFees: r.split_fees||[], customFields: r.custom_fields||{},
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now()
@@ -2149,7 +2162,7 @@ function initAuth(){
       state.doctors = []; state.hospitals = []; state.clients = []; state.notes = []; state.tasks = [];
       state.jobs = []; state.placements = []; state.timesheets = []; state.invoices = []; state.emailTemplates = [];
       state.sentEmails = []; state.mySettings = { displayName:"", sendFromEmail:"", signatureHtml:"" }; state.jobInterests = []; state.documents = [];
-      state.campaigns = []; state.campaignRecipients = []; state.candidateAgreements = []; state.clientSurveys = []; state.folders = []; state.folderMembers = []; state.activeDoctors = [];
+      state.campaigns = []; state.campaignRecipients = []; state.candidateAgreements = []; state.clientSurveys = []; state.folders = []; state.folderMembers = []; state.activeDoctors = []; state.placementConfirmations = [];
       invalidateRecruitersCache();
       render();
     } else {
@@ -2214,7 +2227,8 @@ function loadInitialData(){
     sbFetchAll("client_surveys"),
     sbFetchAll("folders"),
     sbFetchAll("folder_members"),
-    sbFetchAll("active_doctors")
+    sbFetchAll("active_doctors"),
+    sbFetchAll("placement_confirmations")
   ]).then(function(results){
     state.doctors = (results[0]||[]).map(rowToDoctor);
     state.hospitals = (results[1]||[]).map(rowToHospital);
@@ -2247,6 +2261,7 @@ function loadInitialData(){
     var myFolderIds = {}; state.folders.forEach(function(f){ myFolderIds[f.id] = true; });
     state.folderMembers = (results[20]||[]).map(rowToFolderMember).filter(function(m){ return myFolderIds[m.folderId]; });
     state.activeDoctors = (results[21]||[]).map(rowToActiveDoctor).filter(function(a){ return isMine(a.ownerUserId); });
+    state.placementConfirmations = (results[22]||[]).map(rowToPlacementConfirmation);
     maybeCreateStorageCheckTask();
     maybeCreateAnnualSurveyTask();
     sweepDocumentExpiries();
@@ -2561,6 +2576,7 @@ var PLACEMENT_FIELD_KEYS = [
   "timesheetApproverName","timesheetApproverEmail","timesheetApproverPhone","timesheetFrequency","timesheetFrequencyCustomDays","paymentModel",
   "status","applicantStatus","jobStatusLabel",
   "placementSummary","termsFileName","recruiter","recruiterUserId",
+  "travelNotes","vehicleNotes","accommodationNotes","agencyFeeText","clientContactName","clientContactEmail",
   "marginType","marginPercent","invoiceFrequency","clientPaymentTermsDays","hoursPerDay","permSalary","permFeePercent","bookingRoute","splitAgencyName","tdnSplitPercent","secondRecruiterUserId","secondRecruiterPercent"
 ];
 function placementFromData(data){
@@ -3289,6 +3305,151 @@ function renderShell(bodyHtml, activeKey){
   '<datalist id="recruiter-list">'+recruiterOptions+'</datalist>'+
   '<div class="toast-wrap" id="toast-wrap"></div>'+
   (quickView ? quickViewPanelHtml(quickView.type, quickView.id) : "");
+}
+
+/* ---------- Placement confirmations (client + doctor, accept by link) ---------- */
+
+function rowToPlacementConfirmation(r){
+  return { id: r.id, placementId: r.placement_id, party: r.party, toName: r.to_name || "", toEmail: r.to_email || "", cc: r.cc || "",
+    subject: r.subject || "", status: r.status || "sent", sentAt: r.sent_at, openedAt: r.opened_at, acceptedAt: r.accepted_at,
+    acceptedName: r.accepted_name || "", sentBy: r.sent_by || "" };
+}
+function latestConfirmation(placementId, party){
+  var list = state.placementConfirmations.filter(function(c){ return c.placementId === placementId && c.party === party; });
+  list.sort(function(a,b){ return (b.sentAt||"") < (a.sentAt||"") ? -1 : 1; });
+  return list[0] || null;
+}
+function reloadPlacementConfirmations(){
+  return sb.from("placement_confirmations").select("id, placement_id, party, to_name, to_email, cc, subject, status, sent_at, opened_at, accepted_at, accepted_name, sent_by").then(function(res){
+    if (res && res.data){ state.placementConfirmations = res.data.map(rowToPlacementConfirmation); render(); }
+  });
+}
+function fmtLongDate(iso){
+  if (!iso) return "";
+  var p = iso.split("-");
+  return new Date(Date.UTC(+p[0], +p[1]-1, +p[2])).toLocaleDateString("en-AU", { weekday:"short", day:"numeric", month:"long", year:"numeric", timeZone:"UTC" });
+}
+function confRateText(p){
+  var r = revNum(p.candidateRate);
+  if (r === null) return "";
+  var unit = p.rateType === "Hourly Rate" ? "per hour" : p.rateType === "Weekly Rate" ? "per week" : p.rateType === "Fixed Fee" ? "fixed fee" : "per day";
+  return "$" + r.toLocaleString("en-AU", { minimumFractionDigits: r % 1 ? 2 : 0, maximumFractionDigits: 2 }) + " " + unit;
+}
+function confRateWord(p){ return p.rateType === "Hourly Rate" ? "hourly" : p.rateType === "Weekly Rate" ? "weekly" : "daily"; }
+function confDatesText(p){
+  var s = p.startDate ? fmtLongDate(p.startDate) : "TBC";
+  var out = p.endDate ? (s + " to " + fmtLongDate(p.endDate)) : (s + " (ongoing)");
+  var extra = [];
+  if ((p.daysOfWeek||[]).length) extra.push(p.daysOfWeek.join(", "));
+  if (p.startTime && p.endTime) extra.push(p.startTime + " - " + p.endTime);
+  return out + (extra.length ? "<br>" + escapeHtml(extra.join(" · ")) : "");
+}
+function confAgencyText(){
+  var a = state.settings.agency || {};
+  return [escapeHtml(a.name || "The Doctor Network Aus Pty Ltd"), a.abn ? "ABN " + escapeHtml(a.abn) : "", escapeHtml(a.address || ""),
+    [a.phone, a.email].filter(Boolean).map(escapeHtml).join(" · ")].filter(Boolean).join("<br>");
+}
+function confAgencyFee(p){
+  if (p.agencyFeeText) return p.agencyFeeText;
+  if (p.marginType === MARGIN_TYPES[0] && p.marginPercent) return p.marginPercent + "%";
+  return "";
+}
+function confSection(title, valueHtml){
+  return '<p><strong>' + escapeHtml(title) + '</strong><br>' + (valueHtml || '<span style="color:#B23B21;">[add details]</span>') + '</p>';
+}
+var CONF_TOB_PARAGRAPH = "In accordance with our Terms of Business, the Locum Doctor and the Client must notify us if they return to work at the facility within 12 months of the last day of the Locum Doctor’s locum assignment booked through us. In the event that the Locum Doctor is re-appointed to undertake a locum or substantive assignment within the period of 12 months of the last day of the Locum’s appointment, the Client shall pay to us the full charges for locum or substantive placement as set out in our Terms of Business.";
+
+function placementConfirmationDraft(p, party){
+  var doc = findDoctor(p.doctorId), hosp = findHospital(p.hospitalId);
+  var docName = doc ? doc.name : "", hospName = hosp ? hosp.name : "";
+  var docTitle = docName ? (/^dr\.? /i.test(docName) ? docName : "Dr " + docName) : "";
+  var subject = "Confirmation - " + hospName + " - " + docTitle;
+  var hospText = escapeHtml(hospName) + (p.workplaceAddress ? "<br>" + escapeHtml(p.workplaceAddress) : (p.locationName ? "<br>" + escapeHtml(p.locationName) : ""));
+  var position = escapeHtml(p.jobTitle || p.placementTitle || "");
+  var rate = confRateText(p);
+  var nl = function(s){ return escapeHtml(s || "").replace(/\n/g, "<br>"); };
+  var body, toName, toEmail;
+  if (party === "client"){
+    toName = p.clientContactName || (hosp && (hosp.contactFirstName || hosp.contactName)) || "";
+    toEmail = p.clientContactEmail || (hosp && hosp.contactEmail) || p.billingEmail || "";
+    var first = (toName || "").trim().split(/\s+/)[0] || "";
+    body = '<p>Hi ' + escapeHtml(first || "there") + ',</p>' +
+      '<p>Please see below placement confirmation details for:</p>' +
+      '<p><strong>' + escapeHtml(subject) + '</strong></p>' +
+      '<p>Please select "Accept" to confirm the booking.</p>' +
+      confSection("Doctor", escapeHtml(docTitle)) +
+      confSection("Hospital", hospText) +
+      confSection("Agency", confAgencyText()) +
+      confSection("Position", position) +
+      confSection("Dates", confDatesText(p)) +
+      confSection("Travel", nl(p.travelNotes)) +
+      confSection("Vehicle", nl(p.vehicleNotes)) +
+      confSection("Doctor Rate", rate ? "The doctor's rate is " + escapeHtml(rate) + " + GST (If Applicable) per shift inclusive of on-call (24-hour period)" : "") +
+      confSection("Agency Fee", confAgencyFee(p) ? "Calculated at " + escapeHtml(confAgencyFee(p)) + " of the doctor's total remuneration." : "") +
+      '<p>' + escapeHtml(CONF_TOB_PARAGRAPH) + '</p>' +
+      '<p>If the Locum Doctor or Client wishes to make any changes to this document, they must notify us prior to commencement of the locum. The contents and format of this document are the intellectual property of ours and should not be forwarded to any persons or organisations not involved with the recruitment process.</p>' +
+      '<p>This is a Client Confirmation Letter and is the agreement relating to the Locum Assignment. Please note that this document is intended to be read in conjunction with our Terms of Business. If you do not have a copy of our Terms of Business please contact your recruitment consultant to request a copy.</p>' +
+      '<p>Kindest Regards,</p>';
+  } else {
+    toName = docName; toEmail = doc ? doc.email : "";
+    var dfirst = doc ? (doc.firstName || docName.split(/\s+/)[0]) : "";
+    body = '<p>Hi ' + escapeHtml(dfirst || "there") + ',</p>' +
+      '<p>Please see below placement confirmation details for:</p>' +
+      '<p><strong>' + escapeHtml(subject) + '</strong></p>' +
+      '<p>Please "Accept" to confirm the booking.</p>' +
+      confSection("Doctor", escapeHtml(docTitle)) +
+      confSection("Hospital", hospText) +
+      confSection("Agency", confAgencyText()) +
+      confSection("Position", position) +
+      confSection("Dates", confDatesText(p)) +
+      confSection("Travel", nl(p.travelNotes)) +
+      confSection("Accommodation", nl(p.accommodationNotes)) +
+      confSection("Doctor " + confRateWord(p).charAt(0).toUpperCase() + confRateWord(p).slice(1) + " Rate", rate ? "The doctor's " + confRateWord(p) + " rate is " + escapeHtml(rate) + " + GST (If Applicable) per shift inclusive of on-call (24-hour period)" : "") +
+      confSection("Cancellation", "All parties can cancel this agreement giving one weeks’ notice for engagements lasting less than three months and giving two weeks’ notice for engagements lasting three months or longer. This agreement can further be canceled with immediate effect on the grounds of serious misconduct. No penalties are payable under these cancellation circumstances.") +
+      confSection("Insurance", "You are strongly encouraged to purchase professional indemnity insurance, public liability insurance, and workers compensation in addition to any level of insurance cover the hospital may provide. Please also consider purchasing contents insurance to cover your possessions while traveling.") +
+      confSection("Other client appointments", escapeHtml(CONF_TOB_PARAGRAPH)) +
+      confSection("Payment", "As a locum doctor, you are either working as an independent contractor or you are on the payroll of the hospital or of our preferred payroll company. Unless we explicitly agreed otherwise, you are not on our payroll. If you work as an independent contractor (company), the hospital is not required to pay superannuation. Salary arrangements are not to be discussed with any other staff working at Australian health facilities; failure to adhere to this condition may result in ad-hoc cancellation of the locum engagement.") +
+      confSection("Provider Numbers", "You can use HPOS/PRODA to apply for new provider numbers which will be issued immediately. If you do not want to use this service, we will provide you with a provider number application and organise the lodgement for you.") +
+      confSection("Timesheets", "Your timesheet request will be sent to you at the end of each week worked via email. The timesheet needs to show your work hours, break time, and daily/hourly rate. Please be aware that you are required by law to have an unpaid meal break per shift of at least 30 min.") +
+      confSection("Travel Expenses", "It is your responsibility to keep receipts for any travel expenses you personally incur in relation to this locum engagement and to forward a legible photo or scan to us before the completion of the engagement. We will then initiate the appropriate refund based on the travel arrangements agreed on prior to the commencement of the engagement. If you decide to end your locum engagement before the booking end date (see page 1), you agree to personally cover all travel expenses to us and/or the hospital that has incurred or will incur for the remainder of time until the booked end date. If you require a travel booking change or cancellation you agree to cover any additional costs resulting from such alterations (including costs of follow-up travel like car hire or train tickets). The new travel arrangements have to enable you to fulfill your locum engagement without any constraints.") +
+      confSection("WHS and Engagement Issues", "If you are injured during your locum engagement you need to inform us and the hospital immediately. If you experience any problems or if there are any complaints about you within the context of your locum engagement you are required to inform us within 24 hours.") +
+      '<p>Kind Regards,</p>';
+  }
+  return { subject: subject, body: body, toName: toName, toEmail: toEmail };
+}
+
+function confStatusHtml(c){
+  if (!c) return '<span class="conf-status">Not sent</span>';
+  if (c.status === "accepted") return '<span class="conf-status conf-ok">&#10003; Accepted by ' + escapeHtml(c.acceptedName) + ' · ' + fmtDate(String(c.acceptedAt).slice(0,10)) + '</span>';
+  return '<span class="conf-status conf-wait">' + (c.status === "opened" ? "Opened" : "Sent") + ' ' + fmtDate(String(c.sentAt).slice(0,10)) + ' to ' + escapeHtml(c.toEmail) + ' · awaiting acceptance</span>';
+}
+function placementConfirmationsPanelHtml(p){
+  var row = function(party, label){
+    var c = latestConfirmation(p.id, party);
+    return '<div class="conf-row"><div><div class="conf-label">' + label + '</div>' + confStatusHtml(c) + '</div>' +
+      '<button class="btn btn-sm' + (c ? '' : ' btn-primary') + '" type="button" data-action="open-placement-confirmation" data-id="' + p.id + '" data-party="' + party + '">' +
+      (c ? (c.status === "accepted" ? "Send again" : "Resend") : "Prepare &amp; send") + '</button></div>';
+  };
+  return '<div class="panel" style="margin-top:16px;"><h2>Booking confirmations</h2>' +
+    '<p class="sub" style="margin:0 0 10px;">Emails with an Accept button. You\'ll review and edit each one before it goes.</p>' +
+    row("client", "Client") + row("doctor", "Doctor") + '</div>';
+}
+function placementConfirmationModalHtml(p, party){
+  var d = placementConfirmationDraft(p, party);
+  var prev = latestConfirmation(p.id, party);
+  return '<h2>' + (party === "client" ? "Client" : "Doctor") + ' booking confirmation</h2>' +
+    '<form data-action="submit-placement-confirmation" data-id="' + p.id + '" data-party="' + party + '">' +
+    (prev && prev.status !== "accepted" ? '<div class="note-box" style="margin-bottom:10px;">A confirmation was already sent ' + fmtDate(String(prev.sentAt).slice(0,10)) + '. Sending again creates a new Accept link; the old one still works.</div>' : '') +
+    '<div class="two-col"><div class="form-row"><label>To (name)</label><input type="text" name="toName" value="' + escapeHtml(d.toName) + '" /></div>' +
+    '<div class="form-row"><label>To (email)</label><input type="email" name="toEmail" value="' + escapeHtml(d.toEmail) + '" required /></div></div>' +
+    '<div class="form-row"><label>CC (optional)</label><input type="text" name="cc" placeholder="Separate several with commas" /></div>' +
+    '<div class="form-row"><label>Subject</label><input type="text" name="subject" value="' + escapeHtml(d.subject) + '" required /></div>' +
+    '<div class="form-row"><label>Email <span class="sub" style="font-weight:500;">— edit anything; red [add details] lines are empty on the placement</span></label>' +
+      '<div class="conf-toolbar"><button type="button" class="btn btn-sm" data-action="conf-fmt" data-cmd="bold"><b>B</b></button><button type="button" class="btn btn-sm" data-action="conf-fmt" data-cmd="italic"><i>I</i></button><button type="button" class="btn btn-sm" data-action="conf-fmt" data-cmd="insertUnorderedList">• List</button></div>' +
+      '<div class="conf-editor" id="conf-body" contenteditable="true">' + d.body + '</div>' +
+      '<div class="sub" style="margin-top:6px;">An <strong>Accept booking</strong> button is added under the "Accept" line, and your email signature goes at the end.</div></div>' +
+    '<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Cancel</button><button type="submit" class="btn btn-primary">Send for acceptance</button></div>' +
+    '</form>';
 }
 
 /* ---------- Overview (home) ---------- */
@@ -6061,6 +6222,7 @@ function renderPlacementDetailsTab(p, doc, hosp){
     fieldItemHtml("Client terms", placementTermsDays(p)+" days", p.id)+
     fieldItemHtml("Booking route", (p.bookingRoute || BOOKING_ROUTES[0]) + (isSplitRoute(p) ? " - " + (p.splitAgencyName||"agency") + ", " + (p.tdnSplitPercent||50) + "% to TDN" : ""), p.id, true)+
   '</div></div>';
+  col2 += placementConfirmationsPanelHtml(p);
   col2 += placementRevenuePanelHtml(p);
   col2 += '<div class="panel" style="margin-top:16px;">'+panelHead("Payroll and Billing Details", p.id)+'<div class="field-grid">'+
     fieldItemHtml("Invoicing contact", p.billingContact, p.id)+
@@ -6873,6 +7035,20 @@ function addPlacementModalHtml(existing, prefill){
     '</div>'+
     '<div class="form-row"><label>On cost</label><input type="number" step="0.01" name="onCost" value="'+escapeHtml(p.onCost)+'" /></div>'+
     placementRevenueFormHtml(p)+
+    '<div class="form-section-title">Booking confirmation details</div>'+
+    '<div class="two-col">'+
+      '<div class="form-row"><label>Client contact name</label><input type="text" name="clientContactName" value="'+escapeHtml(p.clientContactName)+'" placeholder="Who accepts the booking" /></div>'+
+      '<div class="form-row"><label>Client contact email</label><input type="email" name="clientContactEmail" value="'+escapeHtml(p.clientContactEmail)+'" /></div>'+
+    '</div>'+
+    '<div class="two-col">'+
+      '<div class="form-row"><label>Agency fee (for client confirmation)</label><input type="text" name="agencyFeeText" value="'+escapeHtml(p.agencyFeeText)+'" placeholder="e.g. 15% - defaults to the margin %" /></div>'+
+      '<div class="form-row"></div>'+
+    '</div>'+
+    '<div class="form-row"><label>Travel</label><textarea name="travelNotes" rows="2" placeholder="e.g. Return flights Perth - Port Macquarie booked by the hospital">'+escapeHtml(p.travelNotes)+'</textarea></div>'+
+    '<div class="two-col">'+
+      '<div class="form-row"><label>Vehicle (client confirmation)</label><textarea name="vehicleNotes" rows="2" placeholder="e.g. Hire car provided by hospital">'+escapeHtml(p.vehicleNotes)+'</textarea></div>'+
+      '<div class="form-row"><label>Accommodation (doctor confirmation)</label><textarea name="accommodationNotes" rows="2" placeholder="e.g. Hospital accommodation provided">'+escapeHtml(p.accommodationNotes)+'</textarea></div>'+
+    '</div>'+
 
     '<div class="form-section-title">Payroll &amp; billing details</div>'+
     '<div class="two-col">'+
@@ -7462,6 +7638,14 @@ document.addEventListener("click", function(e){
   else if (action === "quick-view-hospital"){ quickView = {type:"hospital", id:actEl.getAttribute("data-id")}; render(); }
   else if (action === "quick-view-client"){ quickView = {type:"client", id:actEl.getAttribute("data-id")}; render(); }
   else if (action === "close-quick-view"){ quickView = null; render(); }
+  else if (action === "open-placement-confirmation"){
+    var pcP = findPlacement(actEl.getAttribute("data-id"));
+    if (pcP) openModal(placementConfirmationModalHtml(pcP, actEl.getAttribute("data-party")), "wide");
+  }
+  else if (action === "conf-fmt"){
+    var ed = document.getElementById("conf-body"); if (ed) ed.focus();
+    try { document.execCommand(actEl.getAttribute("data-cmd"), false, null); } catch (err) {}
+  }
   else if (action === "active-view"){ uiFilters.active.view = actEl.getAttribute("data-view"); render(); }
   else if (action === "open-active-add"){
     openModal(activeAddModalHtml(actEl.getAttribute("data-status")));
@@ -8196,6 +8380,28 @@ document.addEventListener("submit", function(e){
   } else if (action === "submit-edit-template"){
     updateTemplate(form.getAttribute("data-id"), { name:fd.get("name"), subject:fd.get("subject"), body:fd.get("body") });
     closeModal(); persist();
+  } else if (action === "submit-placement-confirmation"){
+    var pcBody = document.getElementById("conf-body");
+    var pcBtn = form.querySelector('button[type="submit"]');
+    var pcParty = form.getAttribute("data-party");
+    pcBtn.disabled = true; pcBtn.textContent = "Sending...";
+    invokeEdgeFunction("send-placement-confirmation", {
+      placementId: form.getAttribute("data-id"), party: pcParty,
+      toName: fd.get("toName"), toEmail: fd.get("toEmail"), cc: fd.get("cc"), subject: fd.get("subject"),
+      bodyHtml: pcBody ? pcBody.innerHTML : ""
+    }).then(function(r){
+      if (!r.ok){ pcBtn.disabled = false; pcBtn.textContent = "Send for acceptance"; toast(r.error); return; }
+      state.placementConfirmations.push(rowToPlacementConfirmation(r.data.confirmation));
+      closeModal();
+      toast((pcParty === "client" ? "Client" : "Doctor") + " confirmation sent to " + r.data.confirmation.to_email + ".");
+      // pull in the "confirmation sent" note the server added
+      sb.from("notes").select("*").eq("linked_type", "placement").eq("linked_id", r.data.confirmation.placement_id).then(function(nr){
+        if (nr && nr.data){ var have = {}; state.notes.forEach(function(n){ have[n.id] = true; });
+          nr.data.forEach(function(row){ if (!have[row.id]) state.notes.push(rowToNote(row)); }); render(); }
+      });
+      render();
+    });
+    return;
   } else if (action === "submit-active-edit"){
     updateActiveDoctor(form.getAttribute("data-id"), { status: fd.get("status") || "New", rate: fd.get("rate") || "", specialties: fd.getAll("specialties"),
       availableFrom: fd.get("availableFrom") || "", availableTo: fd.get("availableTo") || "",
