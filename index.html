@@ -148,7 +148,15 @@ input,select,textarea{font-family:inherit; font-size:inherit;}
 .nav .dot{width:6px;height:6px;border-radius:50%; background:currentColor; opacity:0.55; flex:0 0 auto;}
 .rail-foot{margin-top:auto; display:flex; flex-direction:column; gap:10px;}
 .rail{gap:16px; width:232px; flex-basis:232px; background:#FBFBF9;}
-.rail-brand{display:flex; flex-direction:column; align-items:flex-start; text-decoration:none; padding:2px 8px 4px;}
+.site-logo{font-family:'Fredoka',sans-serif; font-size:24px; font-weight:600; letter-spacing:-.04em; display:inline-flex; align-items:center; white-space:nowrap; line-height:1; color:#1F2A24;}
+.site-logo .doctor-mid{position:relative; display:inline-flex; align-items:baseline;}
+.site-logo .eye{color:#F76747;}
+.site-logo .logo-smile{position:absolute; left:3px; right:3px; bottom:-13px; width:calc(100% - 6px); height:17px; overflow:visible; pointer-events:none;}
+.site-logo .logo-smile path{fill:none; stroke:#F76747; stroke-width:4; stroke-linecap:round; vector-effect:non-scaling-stroke;}
+.rail .site-logo{font-size:21px;}
+.login-card .site-logo{font-size:28px; margin:6px 0 26px; display:flex; justify-content:center; width:100%;}
+.login-card .site-logo > span{display:inline-flex;}
+.rail-brand{display:flex; align-items:center; text-decoration:none; padding:6px 8px 14px;}
 .rail .logo1{padding:0; justify-content:flex-start;}
 .rail .logo1 .row{font-size:1.25rem; color:var(--teal-700);}
 .rail .logo1 .arc path{stroke:var(--teal-700);}
@@ -863,13 +871,11 @@ var state = {
   mySettings: { displayName:"", sendFromEmail:"", signatureHtml:"" }
 };
 
-var TDN_LOGO_HTML = '<div class="logo1" tabindex="0" role="img" aria-label="The Doctor Network logo. Interactive: focus or hover to see it smile.">'+
-  '<span class="row"><span class="wd collapse">The</span><span class="sp collapse">&nbsp;</span>'+
-  '<span class="word-doctor"><span class="ltr collapse">D</span><span class="eyes-wrap">'+
-  '<svg class="arc" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><path d="M4 5 Q50 32 96 5"/></svg>'+
-  '<span class="ltr eye">o</span><span class="ltr collapse">c</span><span class="ltr collapse">t</span><span class="ltr eye">o</span></span>'+
-  '<span class="ltr collapse">r</span></span><span class="sp collapse">&nbsp;</span><span class="wd collapse">Network</span></span>'+
-'</div>';
+// Same markup + styles as the logo on thedoctornetwork.com.au (static, not interactive)
+var TDN_LOGO_HTML = '<span class="site-logo" role="img" aria-label="The Doctor Network">'+
+  '<span>The D</span><span class="doctor-mid"><span class="eye">o</span><span>c</span><span>t</span><span class="eye">o</span>'+
+  '<svg class="logo-smile" viewBox="0 0 100 34" aria-hidden="true"><path d="M5 7 Q50 32 95 7"/></svg></span><span>r Network</span>'+
+'</span>';
 
 var currentUser = null;   // Supabase auth user, or null when signed out
 var authChecked = false;  // initial session check finished
@@ -3213,7 +3219,7 @@ function renderShell(bodyHtml, activeKey){
   return ''+
   '<div class="shell">'+
     '<div class="rail">'+
-      '<a class="rail-brand" href="#/home">'+TDN_LOGO_HTML+'<span class="rail-brand-sub">Operations workspace</span></a>'+
+      '<a class="rail-brand" href="#/home" aria-label="Overview">'+TDN_LOGO_HTML+'</a>'+
       '<div class="side-search">'+
         '<input type="text" id="side-search-input" placeholder="Search doctors, hospitals, clients..." autocomplete="off" />'+
         '<div class="side-results" id="side-results"></div>'+
