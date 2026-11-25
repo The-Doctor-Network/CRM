@@ -295,6 +295,36 @@ td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
 .xero-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
 .xero-sub{font-size:14px; margin:6px 0 10px;}
 .xero-pill{display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; background:#E6F3F8; color:#1F6E8C; border:1px solid #B9DCEA; vertical-align:middle;}
+.ad-views{display:inline-flex; background:var(--paper-100, #eef0f2); border-radius:10px; padding:3px; gap:2px;}
+.ad-view{border:none; background:none; font:inherit; font-size:13px; font-weight:600; padding:6px 14px; border-radius:8px; cursor:pointer; color:var(--ink-600);}
+.ad-view.on{background:var(--paper-50, #fff); color:var(--ink-900, #1d2329); box-shadow:0 1px 2px rgba(0,0,0,.08);}
+.ad-search{flex:1; min-width:200px; max-width:380px; font:inherit; font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:8px;}
+.ad-board{display:grid; grid-template-columns:repeat(4, minmax(240px, 1fr)); gap:14px; overflow-x:auto; padding-bottom:6px; align-items:start;}
+.ad-col{background:var(--paper-100, #f3f4f6); border:1px solid var(--line); border-radius:14px; padding:10px; min-height:140px; transition:box-shadow .15s;}
+.ad-col.drop{box-shadow:inset 0 0 0 2px var(--teal-600);}
+.ad-col-head{display:flex; align-items:center; gap:8px; margin:2px 2px 10px;}
+.ad-count{font-size:12px; color:var(--ink-400); font-weight:600;}
+.ad-col-body{display:flex; flex-direction:column; gap:10px;}
+.ad-card{background:var(--paper-50, #fff); border:1px solid var(--line); border-radius:12px; padding:12px 13px; cursor:pointer; display:flex; flex-direction:column; gap:7px;}
+.ad-card:hover{border-color:var(--teal-600);}
+.ad-card.dragging{opacity:.5;}
+.ad-card-head{display:flex; justify-content:space-between; align-items:flex-start; gap:6px;}
+.ad-name{font-weight:700; font-size:14.5px;}
+.ad-tags{display:flex; flex-wrap:wrap; gap:5px;}
+.ad-tag{font-size:11.5px; padding:2px 8px; border-radius:6px; background:#ECEDEF; color:#3B414A;}
+.ad-tag-sub{background:#EDE7F6; color:#5B3E96;}
+.ad-tag-loc{background:#E3F0F7; color:#24607F;}
+.ad-line{font-size:12.5px; color:var(--ink-600); font-variant-numeric:tabular-nums;}
+.ad-notes{font-size:12.5px; color:var(--ink-600); line-height:1.4;}
+.ad-pill{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:3px 10px; border-radius:999px; background:#ECEDEF; color:#3B414A;}
+.ad-dot{width:7px; height:7px; border-radius:50%; background:currentColor; opacity:.7;}
+.ad-pill.ad-new{background:#ECEDEF; color:#4A515B;}
+.ad-pill.ad-available{background:#E1F3EA; color:#22764C;}
+.ad-pill.ad-submitted{background:#FDF0DC; color:#9A5B0C;}
+.ad-pill.ad-placed{background:#E3EEFB; color:#245EA8;}
+.ad-add{border:1px dashed var(--line); background:none; border-radius:10px; padding:8px; font:inherit; font-size:12.5px; color:var(--ink-400); cursor:pointer;}
+.ad-add:hover{color:var(--teal-700); border-color:var(--teal-600);}
+.ad-profile{display:flex; align-items:center; flex-wrap:wrap; gap:6px;}
 .rev-footnote{font-size:12px; color:var(--ink-400); margin-top:14px; max-width:820px;}
 .rev-mini{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
 .rev-mini-row{display:flex; align-items:center; gap:8px; font-size:12.5px;}
@@ -749,7 +779,7 @@ var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var state = {
   doctors: [], hospitals: [], clients: [], jobs: [], placements: [], notes: [],
   documents: [], tasks: [], timesheets: [], invoices: [], emailTemplates: [], sentEmails: [], crmUsers: [], jobInterests: [],
-  campaigns: [], campaignRecipients: [], candidateAgreements: [], clientSurveys: [], folders: [], folderMembers: [],
+  campaigns: [], campaignRecipients: [], candidateAgreements: [], clientSurveys: [], folders: [], folderMembers: [], activeDoctors: [],
   ui: { lastHash: "" },
   meta: { seq: 1, invoiceSeq: 1000 },
   settings: { agency: {
@@ -921,6 +951,7 @@ var uiFilters = {
   invoices: { invoiceNumber:"", type:"", candidate:"", hospital:"", status:"", sortDir:"desc", page:1 },
   folder: { q:"", sort:"contact" },
   revenue: { start:"", months:8, recruiter:"", sel:"" },
+  active: { view:"pipeline", q:"" },
   selectedDoctors: {},
   selectedClients: {}
 };
@@ -2019,7 +2050,7 @@ function initAuth(){
       state.doctors = []; state.hospitals = []; state.clients = []; state.notes = []; state.tasks = [];
       state.jobs = []; state.placements = []; state.timesheets = []; state.invoices = []; state.emailTemplates = [];
       state.sentEmails = []; state.mySettings = { displayName:"", sendFromEmail:"", signatureHtml:"" }; state.jobInterests = []; state.documents = [];
-      state.campaigns = []; state.campaignRecipients = []; state.candidateAgreements = []; state.clientSurveys = []; state.folders = []; state.folderMembers = [];
+      state.campaigns = []; state.campaignRecipients = []; state.candidateAgreements = []; state.clientSurveys = []; state.folders = []; state.folderMembers = []; state.activeDoctors = [];
       invalidateRecruitersCache();
       render();
     } else {
@@ -2083,7 +2114,8 @@ function loadInitialData(){
     sbFetchAll("candidate_agreements"),
     sbFetchAll("client_surveys"),
     sbFetchAll("folders"),
-    sbFetchAll("folder_members")
+    sbFetchAll("folder_members"),
+    sbFetchAll("active_doctors")
   ]).then(function(results){
     state.doctors = (results[0]||[]).map(rowToDoctor);
     state.hospitals = (results[1]||[]).map(rowToHospital);
@@ -2114,6 +2146,7 @@ function loadInitialData(){
     state.clientSurveys = (results[18]||[]).map(rowToSurvey);
     state.folders = (results[19]||[]).map(rowToFolder);
     state.folderMembers = (results[20]||[]).map(rowToFolderMember);
+    state.activeDoctors = (results[21]||[]).map(rowToActiveDoctor);
     maybeCreateStorageCheckTask();
     maybeCreateAnnualSurveyTask();
     sweepDocumentExpiries();
@@ -2303,6 +2336,7 @@ function removeLinkedRecords(linkedType, linkedId){
 function deleteDoctor(id){
   state.doctors = state.doctors.filter(function(d){ return d.id !== id; });
   state.folderMembers = state.folderMembers.filter(function(m){ return m.doctorId !== id; });
+  state.activeDoctors = state.activeDoctors.filter(function(a){ return a.doctorId !== id; });
   state.placements = state.placements.filter(function(p){ return p.doctorId !== id; });
   state.timesheets = state.timesheets.filter(function(t){ return t.doctorId !== id; });
   state.invoices = state.invoices.filter(function(inv){ return inv.doctorId !== id; });
@@ -2361,6 +2395,7 @@ function deleteDoctorsBulk(ids){
   var idSet = {}; ids.forEach(function(id){ idSet[id] = true; });
   state.doctors = state.doctors.filter(function(d){ return !idSet[d.id]; });
   state.folderMembers = state.folderMembers.filter(function(m){ return !idSet[m.doctorId]; });
+  state.activeDoctors = state.activeDoctors.filter(function(a){ return !idSet[a.doctorId]; });
   state.placements = state.placements.filter(function(p){ return !idSet[p.doctorId]; });
   state.timesheets = state.timesheets.filter(function(t){ return !idSet[t.doctorId]; });
   state.invoices = state.invoices.filter(function(inv){ return !idSet[inv.doctorId]; });
@@ -3110,6 +3145,7 @@ function renderShell(bodyHtml, activeKey){
       '<div class="nav">'+
         navItem("#/home","Home", activeKey==="home")+
         navItem("#/doctors","Doctors", activeKey==="doctors")+
+        navItem("#/active","Active Doctors", activeKey==="active")+
         navItem("#/folders","Folders", activeKey==="folders")+
         navItem("#/hospitals","Hospitals", activeKey==="hospitals")+
         navItem("#/clients","Clients", activeKey==="clients")+
@@ -3148,6 +3184,215 @@ function renderShell(bodyHtml, activeKey){
   '<div class="toast-wrap" id="toast-wrap"></div>'+
   (quickView ? quickViewPanelHtml(quickView.type, quickView.id) : "");
 }
+
+/* ---------- Active Doctors (pipeline of doctors being actively worked) ---------- */
+
+var ACTIVE_STATUSES = ["New", "Available", "Submitted", "Placed"];
+var ACTIVE_STATUS_CLASS = { New:"ad-new", Available:"ad-available", Submitted:"ad-submitted", Placed:"ad-placed" };
+
+function rowToActiveDoctor(r){
+  return { id: r.id, doctorId: r.doctor_id, status: r.status || "New",
+    availableFrom: r.available_from || "", availableTo: r.available_to || "", location: r.location || "",
+    rate: r.rate === null || r.rate === undefined ? "" : String(r.rate), notes: r.notes || "",
+    placementId: r.placement_id || "", addedBy: r.added_by || "",
+    addedAt: r.added_at ? new Date(r.added_at).getTime() : Date.now(), updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now() };
+}
+function activeDoctorToRow(a){
+  return { id: a.id, doctor_id: a.doctorId, status: a.status, available_from: a.availableFrom || null, available_to: a.availableTo || null,
+    location: a.location || null, rate: numOrNull(a.rate), notes: a.notes || null, placement_id: a.placementId || null,
+    added_by: a.addedBy || null, updated_at: new Date().toISOString() };
+}
+function activeEntryFor(doctorId){
+  for (var i=0;i<state.activeDoctors.length;i++){ if (state.activeDoctors[i].doctorId === doctorId) return state.activeDoctors[i]; }
+  return null;
+}
+function findActiveEntry(id){
+  for (var i=0;i<state.activeDoctors.length;i++){ if (state.activeDoctors[i].id === id) return state.activeDoctors[i]; }
+  return null;
+}
+function addActiveDoctor(doctorId, status){
+  var existing = activeEntryFor(doctorId);
+  if (existing) return existing;
+  var d = findDoctor(doctorId);
+  var a = { id: uid("ad"), doctorId: doctorId, status: status || "New", availableFrom:"", availableTo:"",
+    location: d ? (locationOf(d) || "") : "", rate:"", notes:"", placementId:"", addedBy: getViewerName(), addedAt: Date.now(), updatedAt: Date.now() };
+  state.activeDoctors.push(a);
+  sb.from("active_doctors").insert(activeDoctorToRow(a)).then(function(res){ if (res.error) sbRowError("insert active_doctors", res.error); });
+  return a;
+}
+function updateActiveDoctor(id, patch){
+  var a = findActiveEntry(id); if (!a) return;
+  for (var k in patch) a[k] = patch[k];
+  a.updatedAt = Date.now();
+  sb.from("active_doctors").update(activeDoctorToRow(a)).eq("id", id).then(function(res){ if (res.error) sbRowError("update active_doctors", res.error); });
+}
+function removeActiveDoctor(id){
+  state.activeDoctors = state.activeDoctors.filter(function(a){ return a.id !== id; });
+  sbDelete("active_doctors", id);
+}
+// Placements add doctors here automatically (database trigger) - pull the latest after one is created.
+function reloadActiveDoctors(){
+  return sb.from("active_doctors").select("*").then(function(res){
+    if (res && res.data){ state.activeDoctors = res.data.map(rowToActiveDoctor); render(); }
+  });
+}
+function fmtShortDate(iso){
+  if (!iso) return "";
+  var p = iso.split("-"); return p[2] + "/" + p[1] + "/" + p[0];
+}
+function activeDatesText(a){
+  if (a.availableFrom && a.availableTo) return fmtShortDate(a.availableFrom) + " → " + fmtShortDate(a.availableTo);
+  if (a.availableFrom) return "From " + fmtShortDate(a.availableFrom);
+  if (a.availableTo) return "Until " + fmtShortDate(a.availableTo);
+  return "";
+}
+function activeStatusPill(status){
+  return '<span class="ad-pill '+(ACTIVE_STATUS_CLASS[status]||"")+'"><span class="ad-dot"></span>'+escapeHtml(status)+'</span>';
+}
+
+function activeCardHtml(a){
+  var d = findDoctor(a.doctorId); if (!d) return "";
+  var subs = (d.subSpecialty || "").split(/\s*[,;\/]\s*/).filter(Boolean).slice(0, 3);
+  var tags = subs.map(function(s){ return '<span class="ad-tag ad-tag-sub">'+escapeHtml(s.replace(/ Psychiatry$/,""))+'</span>'; }).join("");
+  if (!tags && d.position) tags = '<span class="ad-tag">'+escapeHtml(d.position)+'</span>';
+  var dates = activeDatesText(a);
+  return '<div class="ad-card" draggable="true" data-ad-id="'+a.id+'" data-action="open-active-edit" data-id="'+a.id+'">'+
+    '<div class="ad-card-head"><div class="ad-name">'+escapeHtml(d.name)+'</div>'+
+      '<button type="button" class="btn-icon" data-action="quick-view-doctor" data-id="'+d.id+'" title="Quick view" aria-label="Quick view '+escapeHtml(d.name)+'">&#128065;</button></div>'+
+    (tags ? '<div class="ad-tags">'+tags+'</div>' : '')+
+    (dates ? '<div class="ad-line">'+dates+'</div>' : '')+
+    (a.location ? '<div class="ad-tags"><span class="ad-tag ad-tag-loc">'+escapeHtml(a.location)+'</span></div>' : '')+
+    (a.rate ? '<div class="ad-line">'+fmtMoney0(revNum(a.rate))+'</div>' : '')+
+    (a.notes ? '<div class="ad-notes">'+escapeHtml(a.notes.length > 160 ? a.notes.slice(0,160)+"…" : a.notes)+'</div>' : '')+
+    '<div>'+activeStatusPill(a.status)+'</div>'+
+  '</div>';
+}
+
+function renderActiveDoctors(){
+  var af = uiFilters.active;
+  var q = (af.q || "").toLowerCase();
+  var list = state.activeDoctors.filter(function(a){
+    var d = findDoctor(a.doctorId); if (!d) return false;
+    if (!q) return true;
+    return [d.name, d.subSpecialty, d.position, a.location, a.notes].join(" ").toLowerCase().indexOf(q) >= 0;
+  });
+  var byStatus = {}; ACTIVE_STATUSES.forEach(function(s){ byStatus[s] = []; });
+  list.forEach(function(a){ (byStatus[a.status] || byStatus.New).push(a); });
+  var dateKey = function(a){ return a.availableFrom || "9999"; };
+  ACTIVE_STATUSES.forEach(function(s){ byStatus[s].sort(function(x,y){ return dateKey(x) < dateKey(y) ? -1 : dateKey(x) > dateKey(y) ? 1 : 0; }); });
+
+  var html = '<div class="page-head"><div><h1>Active Doctors</h1><div class="sub">'+state.activeDoctors.length+' doctor'+(state.activeDoctors.length===1?"":"s")+' you\'re actively working with</div></div>'+
+    '<button class="btn btn-primary" type="button" data-action="open-active-add">+ Add doctor</button></div>';
+  html += '<div class="rev-controls">'+
+    '<div class="ad-views">'+
+      '<button type="button" class="ad-view'+(af.view==="pipeline"?" on":"")+'" data-action="active-view" data-view="pipeline">Pipeline</button>'+
+      '<button type="button" class="ad-view'+(af.view==="list"?" on":"")+'" data-action="active-view" data-view="list">All doctors</button>'+
+    '</div>'+
+    '<input type="text" id="active-filter" class="ad-search" placeholder="Filter by name, specialty, location, notes..." value="'+escapeHtml(af.q||"")+'" />'+
+  '</div>';
+
+  if (!state.activeDoctors.length){
+    return html + '<div class="empty"><h3>No active doctors yet</h3><p>Add doctors here from this page, from a doctor\'s profile or quick view. Doctors you place are added automatically.</p>'+
+      '<button class="btn btn-primary" type="button" data-action="open-active-add">Add a doctor</button></div>';
+  }
+
+  if (af.view === "list"){
+    var rows = list.slice().sort(function(x,y){ return ACTIVE_STATUSES.indexOf(x.status) - ACTIVE_STATUSES.indexOf(y.status) || (dateKey(x) < dateKey(y) ? -1 : 1); });
+    html += '<div class="table-wrap"><table><thead><tr><th class="checkcell"></th><th>Doctor</th><th>Sub-specialty</th><th>Status</th><th>Dates</th><th>Location</th><th class="num">Rate</th><th>Notes</th></tr></thead><tbody>';
+    rows.forEach(function(a){
+      var d = findDoctor(a.doctorId);
+      html += '<tr data-action="open-active-edit" data-id="'+a.id+'">'+
+        '<td class="checkcell"><button type="button" class="btn-icon" data-action="quick-view-doctor" data-id="'+d.id+'" title="Quick view">&#128065;</button></td>'+
+        '<td class="name">'+escapeHtml(d.name)+'</td><td>'+escapeHtml(d.subSpecialty||"-")+'</td><td>'+activeStatusPill(a.status)+'</td>'+
+        '<td>'+(activeDatesText(a)||"-")+'</td><td>'+escapeHtml(a.location||"-")+'</td><td class="num">'+(a.rate?fmtMoney0(revNum(a.rate)):"-")+'</td>'+
+        '<td><div class="folder-last-note" style="max-width:320px;">'+escapeHtml(a.notes||"")+'</div></td></tr>';
+    });
+    return html + '</tbody></table></div>';
+  }
+
+  html += '<div class="ad-board">';
+  ACTIVE_STATUSES.forEach(function(s){
+    html += '<div class="ad-col" data-ad-status="'+s+'"><div class="ad-col-head">'+activeStatusPill(s)+'<span class="ad-count">'+byStatus[s].length+'</span></div>'+
+      '<div class="ad-col-body">'+byStatus[s].map(activeCardHtml).join("")+
+      '<button type="button" class="ad-add" data-action="open-active-add" data-status="'+s+'">+ Add doctor</button></div></div>';
+  });
+  return html + '</div><p class="rev-footnote">Drag a card to another column to change its status, or click it to edit dates, location, rate and notes. Doctors you place are added here automatically as Placed.</p>';
+}
+
+function activeAddModalHtml(status){
+  return '<h2>Add to Active Doctors</h2>'+
+    '<div class="form-row"><label>Status</label><select id="active-add-status">'+ACTIVE_STATUSES.map(function(s){ return '<option'+(s===(status||"New")?" selected":"")+'>'+s+'</option>'; }).join("")+'</select></div>'+
+    '<div class="form-row"><input type="text" id="active-add-search" placeholder="Type a name, email or mobile..." autocomplete="off" autofocus /></div>'+
+    '<div id="active-add-results" class="folder-add-results">'+activeAddResultsHtml("")+'</div>'+
+    '<div class="form-actions"><button type="button" class="btn btn-primary" data-action="close-modal">Done</button></div>';
+}
+function activeAddResultsHtml(q){
+  q = (q||"").trim().toLowerCase();
+  if (!q) return '<p class="sub" style="margin:4px 0;">Start typing to find doctors.</p>';
+  var matches = state.doctors.filter(function(d){ return [d.name, d.email, d.mobile].join(" ").toLowerCase().indexOf(q) >= 0; }).slice(0, 25);
+  if (!matches.length) return '<p class="sub" style="margin:4px 0;">No doctors match.</p>';
+  return matches.map(function(d){
+    var meta = [d.position, d.subSpecialty || d.specialty, locationOf(d)].filter(Boolean).map(escapeHtml).join(" &middot; ");
+    var a = activeEntryFor(d.id);
+    return '<div class="folder-add-row"><div><div class="folder-add-name">'+escapeHtml(d.name)+'</div><div class="folder-last-note">'+meta+'</div></div>'+
+      (a ? '<span class="badge-in">'+escapeHtml(a.status)+'</span>' : '<button type="button" class="btn btn-sm" data-action="active-add-doctor" data-doctor="'+d.id+'">Add</button>')+'</div>';
+  }).join("");
+}
+function activeEditModalHtml(a){
+  var d = findDoctor(a.doctorId);
+  return '<h2>'+escapeHtml(d ? d.name : "Doctor")+'</h2>'+
+    '<form data-action="submit-active-edit" data-id="'+a.id+'">'+
+    '<div class="two-col"><div class="form-row"><label>Status</label><select name="status">'+ACTIVE_STATUSES.map(function(s){ return '<option'+(s===a.status?" selected":"")+'>'+s+'</option>'; }).join("")+'</select></div>'+
+    '<div class="form-row"><label>Rate (per day)</label><input type="number" step="1" min="0" name="rate" value="'+escapeHtml(a.rate)+'" /></div></div>'+
+    '<div class="two-col"><div class="form-row"><label>Available from</label><input type="date" name="availableFrom" value="'+escapeHtml(a.availableFrom)+'" /></div>'+
+    '<div class="form-row"><label>Available to</label><input type="date" name="availableTo" value="'+escapeHtml(a.availableTo)+'" /></div></div>'+
+    '<div class="form-row"><label>Location</label><input type="text" name="location" value="'+escapeHtml(a.location)+'" placeholder="e.g. Brisbane, Townsville, Remote" /></div>'+
+    '<div class="form-row"><label>Notes / next step</label><textarea name="notes" rows="4" placeholder="e.g. Follow up with Nik at Freo re March cover">'+escapeHtml(a.notes)+'</textarea></div>'+
+    '<div class="form-actions" style="justify-content:space-between;">'+
+      '<div><button type="button" class="btn btn-danger" data-action="active-remove" data-id="'+a.id+'">Remove from Active</button> '+
+      (d ? '<a class="btn" href="#/doctors/'+d.id+'/snapshot" data-action="close-modal">Open profile</a>' : '')+'</div>'+
+      '<div><button type="button" class="btn" data-action="close-modal">Cancel</button> <button type="submit" class="btn btn-primary">Save</button></div>'+
+    '</div></form>';
+}
+// "Active Doctors" block for the quick view and the doctor's snapshot.
+function doctorActiveHtml(d){
+  var a = activeEntryFor(d.id);
+  if (!a) return '<button type="button" class="btn btn-sm" data-action="active-add-doctor" data-doctor="'+d.id+'" data-status="New">+ Add to Active Doctors</button>';
+  return '<div class="ad-profile">'+activeStatusPill(a.status)+
+    (activeDatesText(a) ? ' <span class="folder-last-note">'+activeDatesText(a)+'</span>' : '')+
+    ' <button type="button" class="link-add" data-action="open-active-edit" data-id="'+a.id+'">Edit</button></div>';
+}
+
+// Drag and drop between columns.
+var activeDragId = null;
+document.addEventListener("dragstart", function(e){
+  var card = e.target.closest && e.target.closest(".ad-card");
+  if (!card) return;
+  activeDragId = card.getAttribute("data-ad-id");
+  card.classList.add("dragging");
+  try { e.dataTransfer.setData("text/plain", activeDragId); e.dataTransfer.effectAllowed = "move"; } catch (err) {}
+});
+document.addEventListener("dragend", function(e){
+  var card = e.target.closest && e.target.closest(".ad-card"); if (card) card.classList.remove("dragging");
+  document.querySelectorAll(".ad-col.drop").forEach(function(c){ c.classList.remove("drop"); });
+});
+document.addEventListener("dragover", function(e){
+  var col = e.target.closest && e.target.closest(".ad-col");
+  if (!col || !activeDragId) return;
+  e.preventDefault();
+  document.querySelectorAll(".ad-col.drop").forEach(function(c){ if (c !== col) c.classList.remove("drop"); });
+  col.classList.add("drop");
+});
+document.addEventListener("drop", function(e){
+  var col = e.target.closest && e.target.closest(".ad-col");
+  if (!col || !activeDragId) return;
+  e.preventDefault();
+  var status = col.getAttribute("data-ad-status");
+  var a = findActiveEntry(activeDragId);
+  activeDragId = null;
+  if (a && a.status !== status){ updateActiveDoctor(a.id, { status: status }); }
+  render();
+});
 
 /* ---------- Xero (draft invoices + status sync) ---------- */
 
@@ -4088,6 +4333,7 @@ function quickViewDoctorHtml(id){
   if (d.skills && d.skills.length){
     html += '<div class="qv-skills"><label>Skills</label><div class="tags">'+d.skills.map(function(s){ return '<span class="tag">'+escapeHtml(s)+'</span>'; }).join("")+'</div></div>';
   }
+  html += '<div class="qv-folders"><label>Active Doctors</label>'+doctorActiveHtml(d)+'</div>';
   html += '<div class="qv-folders"><label>Folders</label>'+doctorFoldersHtml(d)+'</div>';
   var qvOpenTasks = state.tasks.filter(function(t){ return !t.done && t.linkedType==="doctor" && t.linkedId===d.id; })
     .sort(function(a,b){ return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0; });
@@ -4446,6 +4692,7 @@ function renderDoctorSnapshotTab(d){
     '<div class="field-item"><label>BSB</label><div class="val">'+escapeHtml(d.bankBsb||"-")+'</div></div>'+
     '<div class="field-item"><label>Account number</label><div class="val">'+escapeHtml(d.bankAccountNumber||"-")+'</div></div>'+
   '</div></div>';
+  html += '<div class="panel" style="margin-top:16px;"><h2>Active Doctors</h2>'+doctorActiveHtml(d)+'</div>';
   html += '<div class="panel" style="margin-top:16px;"><h2>Folders</h2>'+doctorFoldersHtml(d)+'</div>';
   html += agreementPanelHtml(d);
   html += jobRadarPanelHtml(d);
@@ -6632,6 +6879,7 @@ function render(){
   else if (key === "placements" && route[1]){ body = renderPlacementDetail(route[1], route[2]); }
   else if (key === "placements"){ body = renderPlacementsList(); }
   else if (key === "revenue"){ body = renderRevenueTracker(); }
+  else if (key === "active"){ body = renderActiveDoctors(); }
   else if (key === "timesheets" && route[1]){ body = renderTimesheetDetail(route[1]); }
   else if (key === "timesheets"){ body = renderTimesheetsList(); }
   else if (key === "invoices" && route[1]){ body = renderInvoiceDetail(route[1]); }
@@ -6971,6 +7219,28 @@ document.addEventListener("click", function(e){
   else if (action === "quick-view-hospital"){ quickView = {type:"hospital", id:actEl.getAttribute("data-id")}; render(); }
   else if (action === "quick-view-client"){ quickView = {type:"client", id:actEl.getAttribute("data-id")}; render(); }
   else if (action === "close-quick-view"){ quickView = null; render(); }
+  else if (action === "active-view"){ uiFilters.active.view = actEl.getAttribute("data-view"); render(); }
+  else if (action === "open-active-add"){
+    openModal(activeAddModalHtml(actEl.getAttribute("data-status")));
+    var aaIn = document.getElementById("active-add-search"); if (aaIn) aaIn.focus();
+  }
+  else if (action === "active-add-doctor"){
+    var aaSel = document.getElementById("active-add-status");
+    var aaStatus = aaSel ? aaSel.value : (actEl.getAttribute("data-status") || "New");
+    var aaDoc = findDoctor(actEl.getAttribute("data-doctor"));
+    addActiveDoctor(actEl.getAttribute("data-doctor"), aaStatus);
+    var aaBox = document.getElementById("active-add-results"), aaSearch = document.getElementById("active-add-search");
+    if (aaBox){ aaBox.innerHTML = activeAddResultsHtml(aaSearch ? aaSearch.value : ""); }
+    if (aaDoc) toast(aaDoc.name + " added to Active Doctors (" + aaStatus + ").");
+    render();
+  }
+  else if (action === "open-active-edit"){ var aeA = findActiveEntry(actEl.getAttribute("data-id")); if (aeA) openModal(activeEditModalHtml(aeA)); }
+  else if (action === "active-remove"){
+    var arA = findActiveEntry(actEl.getAttribute("data-id")), arD = arA ? findDoctor(arA.doctorId) : null;
+    removeActiveDoctor(actEl.getAttribute("data-id")); closeModal();
+    if (arD) toast(arD.name + " removed from Active Doctors.");
+    render();
+  }
   else if (action === "xero-connect"){
     actEl.disabled = true;
     xeroCall("authorize").then(function(r){ if (!r.ok){ actEl.disabled = false; toast(r.error); return; } location.href = r.data.url; });
@@ -7437,6 +7707,17 @@ document.addEventListener("input", function(e){
   if (e.target.closest && e.target.closest('form[data-action="submit-add-placement"], form[data-action="submit-edit-placement"]')){
     refreshPlacementFormRevenue(e.target.closest("form"));
   }
+  if (e.target.id === "active-add-search"){
+    var aasBox = document.getElementById("active-add-results");
+    if (aasBox) aasBox.innerHTML = activeAddResultsHtml(e.target.value);
+    return;
+  }
+  if (e.target.id === "active-filter"){
+    uiFilters.active.q = e.target.value; render();
+    var afEl = document.getElementById("active-filter");
+    if (afEl){ afEl.focus(); var afV = afEl.value; afEl.value = ""; afEl.value = afV; }
+    return;
+  }
   if (e.target.id === "folder-add-search"){
     var fasBox = document.getElementById("folder-add-results");
     if (fasBox) fasBox.innerHTML = folderAddResultsHtml(e.target.getAttribute("data-folder"), e.target.value);
@@ -7592,6 +7873,7 @@ document.addEventListener("submit", function(e){
     addPlacement(placementDataFromForm(fd));
     closeModal(); persist();
     fireConfetti();
+    setTimeout(reloadActiveDoctors, 2500); // the database moves the doctor to Active Doctors > Placed
   } else if (action === "submit-edit-placement"){
     if (!fd.get("doctorId")){ toast("Please pick a doctor from the search results."); return; }
     if (!fd.get("hospitalId")){ toast("Please pick a hospital from the search results."); return; }
@@ -7671,6 +7953,11 @@ document.addEventListener("submit", function(e){
   } else if (action === "submit-edit-template"){
     updateTemplate(form.getAttribute("data-id"), { name:fd.get("name"), subject:fd.get("subject"), body:fd.get("body") });
     closeModal(); persist();
+  } else if (action === "submit-active-edit"){
+    updateActiveDoctor(form.getAttribute("data-id"), { status: fd.get("status") || "New", rate: fd.get("rate") || "",
+      availableFrom: fd.get("availableFrom") || "", availableTo: fd.get("availableTo") || "",
+      location: (fd.get("location")||"").trim(), notes: (fd.get("notes")||"").trim() });
+    closeModal(); toast("Saved."); render();
   } else if (action === "submit-xero-settings"){
     var xs = { id:"main", updated_at: new Date().toISOString() };
     XERO_ACCOUNT_FIELDS.forEach(function(f){ xs[f[0]] = fd.get(f[0]) || null; });
