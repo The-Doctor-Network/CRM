@@ -872,6 +872,7 @@ td.checkcell, th.checkcell{width:34px; text-align:center;}
 @media (prefers-reduced-motion: reduce){
   .confetti-container{display:none;}
 }
+.ad-prompt{margin:0 0 10px;font-size:13px;color:#6B7478;line-height:1.45;}
 </style>
 </head>
 <body>
@@ -3797,7 +3798,8 @@ function activeEditModalHtml(a){
 // "Active Doctors" block for the quick view and the doctor's snapshot.
 function doctorActiveHtml(d){
   var a = activeEntryFor(d.id);
-  if (!a) return '<button type="button" class="btn btn-sm" data-action="active-add-doctor" data-doctor="'+d.id+'" data-status="New">+ Add to Active Doctors</button>';
+  if (!a) return '<p class="ad-prompt">Is this doctor available or looking for work? Add them here to keep them front of mind.</p>'+
+    '<button type="button" class="btn btn-sm" data-action="active-add-doctor" data-doctor="'+d.id+'" data-status="New">+ Add to Active Doctors</button>';
   return '<div class="ad-profile">'+activeStatusPill(a.status)+
     (activeDatesText(a) ? ' <span class="folder-last-note">'+activeDatesText(a)+'</span>' : '')+
     ' <button type="button" class="link-add" data-action="open-active-edit" data-id="'+a.id+'">Edit</button></div>';
