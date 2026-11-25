@@ -1625,9 +1625,14 @@ function rowToTask(r){
     id: r.id, title: r.title||"", dueDate: r.due_date||"", done: !!r.done,
     linkedType: r.linked_type, linkedId: r.linked_id,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
-    completedAt: r.completed_at ? new Date(r.completed_at).getTime() : null
+    completedAt: r.completed_at ? new Date(r.completed_at).getTime() : null,
+    ownerUserId: r.owner_user_id || ""
   };
 }
+// Personal items (tasks, Active Doctors, folders) belong to the recruiter who created them.
+// New rows get their owner from the database (owner_user_id defaults to the signed-in user);
+// rows with no owner (e.g. created by automations) are shown to everyone.
+function isMine(ownerUserId){ return !ownerUserId || !!(currentUser && ownerUserId === currentUser.id); }
 function documentToRow(doc){
   return {
     id: doc.id, linked_type: doc.linkedType, linked_id: doc.linkedId,
@@ -2201,7 +2206,7 @@ function loadInitialData(){
     state.hospitals = (results[1]||[]).map(rowToHospital);
     state.clients = (results[2]||[]).map(rowToClient);
     state.notes = (results[3]||[]).map(rowToNote);
-    state.tasks = (results[4]||[]).map(rowToTask);
+    state.tasks = (results[4]||[]).map(rowToTask).filter(function(t){ return isMine(t.ownerUserId); });
     state.jobs = (results[5]||[]).map(rowToJob);
     state.placements = (results[6]||[]).map(rowToPlacement);
     state.timesheets = (results[7]||[]).map(rowToTimesheet);
@@ -2224,9 +2229,10 @@ function loadInitialData(){
     state.campaignRecipients = (results[16]||[]).map(rowToCampaignRecipient);
     state.candidateAgreements = (results[17]||[]).map(rowToAgreement);
     state.clientSurveys = (results[18]||[]).map(rowToSurvey);
-    state.folders = (results[19]||[]).map(rowToFolder);
-    state.folderMembers = (results[20]||[]).map(rowToFolderMember);
-    state.activeDoctors = (results[21]||[]).map(rowToActiveDoctor);
+    state.folders = (results[19]||[]).map(rowToFolder).filter(function(f){ return isMine(f.ownerUserId); });
+    var myFolderIds = {}; state.folders.forEach(function(f){ myFolderIds[f.id] = true; });
+    state.folderMembers = (results[20]||[]).map(rowToFolderMember).filter(function(m){ return myFolderIds[m.folderId]; });
+    state.activeDoctors = (results[21]||[]).map(rowToActiveDoctor).filter(function(a){ return isMine(a.ownerUserId); });
     maybeCreateStorageCheckTask();
     maybeCreateAnnualSurveyTask();
     sweepDocumentExpiries();
@@ -3393,7 +3399,7 @@ function rowToActiveDoctor(r){
   return { id: r.id, doctorId: r.doctor_id, status: r.status || "New",
     availableFrom: r.available_from || "", availableTo: r.available_to || "", location: r.location || "",
     rate: r.rate === null || r.rate === undefined ? "" : String(r.rate), notes: r.notes || "",
-    placementId: r.placement_id || "", addedBy: r.added_by || "",
+    placementId: r.placement_id || "", addedBy: r.added_by || "", ownerUserId: r.owner_user_id || "",
     addedAt: r.added_at ? new Date(r.added_at).getTime() : Date.now(), updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now() };
 }
 function activeDoctorToRow(a){
@@ -3432,7 +3438,7 @@ function removeActiveDoctor(id){
 // Placements add doctors here automatically (database trigger) - pull the latest after one is created.
 function reloadActiveDoctors(){
   return sb.from("active_doctors").select("*").then(function(res){
-    if (res && res.data){ state.activeDoctors = res.data.map(rowToActiveDoctor); render(); }
+    if (res && res.data){ state.activeDoctors = res.data.map(rowToActiveDoctor).filter(function(a){ return isMine(a.ownerUserId); }); render(); }
   });
 }
 function fmtShortDate(iso){
@@ -4176,7 +4182,7 @@ function refreshPlacementFormRevenue(form){
 /* ---------- Folders (groups of doctors, e.g. "Active doctors", "RANZCP Congress 2026") ---------- */
 
 function rowToFolder(r){
-  return { id: r.id, name: r.name || "", description: r.description || "", createdBy: r.created_by || "",
+  return { id: r.id, name: r.name || "", description: r.description || "", createdBy: r.created_by || "", ownerUserId: r.owner_user_id || "",
     createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now() };
 }
 function folderToRow(f){
