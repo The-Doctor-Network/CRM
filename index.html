@@ -406,6 +406,20 @@ td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
 .ad-add{border:1px dashed var(--line); background:none; border-radius:10px; padding:8px; font:inherit; font-size:12.5px; color:var(--ink-400); cursor:pointer;}
 .ad-add:hover{color:var(--teal-700); border-color:var(--teal-600);}
 .ad-hint{font-size:12.5px; color:var(--ink-400); margin:-4px 0 14px;}
+.ad-tag.tg-purple{background:#ECE4F7; color:#5B3E96;}
+.ad-tag.tg-gold{background:#F6ECD4; color:#7A5A10;}
+.ad-tag.tg-green{background:#DDEEE3; color:#2C6A45;}
+.ad-tag.tg-grey{background:#ECEDEF; color:#454B54;}
+.ad-tag.tg-pink{background:#F6E1E8; color:#8E3456;}
+.ad-tag.tg-orange{background:#F8E3D4; color:#8A4A1C;}
+.ad-tag.tg-blue{background:#DFEAF6; color:#2A5C8C;}
+.ad-tag.tg-red{background:#F7E0DE; color:#9A3329;}
+.ad-spec-pick{display:flex; flex-wrap:wrap; gap:6px 14px;}
+.ad-spec-opt{display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:500 !important; color:var(--ink-900) !important; text-transform:none !important; letter-spacing:0 !important;}
+.ad-spec-opt input{width:auto; margin:0;}
+.form-row .ad-spec-opt{display:inline-flex !important; flex-direction:row; align-items:center; margin:0 !important; white-space:nowrap;}
+.form-row .ad-spec-opt input{width:14px !important; flex:0 0 14px; padding:0;}
+.ad-tag{white-space:nowrap;}
 .ad-profile{display:flex; align-items:center; flex-wrap:wrap; gap:6px;}
 .rev-footnote{font-size:12px; color:var(--ink-400); margin-top:14px; max-width:820px;}
 .rev-mini{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
@@ -3400,11 +3414,13 @@ function rowToActiveDoctor(r){
     availableFrom: r.available_from || "", availableTo: r.available_to || "", location: r.location || "",
     rate: r.rate === null || r.rate === undefined ? "" : String(r.rate), notes: r.notes || "",
     placementId: r.placement_id || "", addedBy: r.added_by || "", ownerUserId: r.owner_user_id || "",
+    specialties: r.specialties || [],
     addedAt: r.added_at ? new Date(r.added_at).getTime() : Date.now(), updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now() };
 }
 function activeDoctorToRow(a){
   return { id: a.id, doctor_id: a.doctorId, status: a.status, available_from: a.availableFrom || null, available_to: a.availableTo || null,
     location: a.location || null, rate: numOrNull(a.rate), notes: a.notes || null, placement_id: a.placementId || null,
+    specialties: a.specialties || [],
     added_by: a.addedBy || null, updated_at: new Date().toISOString() };
 }
 function activeEntryFor(doctorId){
@@ -3451,22 +3467,38 @@ function activeDatesText(a){
   if (a.availableTo) return "Until " + fmtShortDate(a.availableTo);
   return "";
 }
+var ACTIVE_SPECIALTIES = ["General Adult","Old Age","Child & Adolescent","Forensic","Addiction","Consultation-Liaison","Perinatal","Rehabilitation","Eating Disorders","Intellectual Disability"];
+var SPEC_TAG_CLASS = { "General Adult":"tg-purple", "Old Age":"tg-gold", "Child & Adolescent":"tg-green", "Forensic":"tg-grey", "Addiction":"tg-red", "Consultation-Liaison":"tg-blue", "Perinatal":"tg-pink" };
+var LOC_TAG_CLASSES = ["tg-pink","tg-purple","tg-orange","tg-blue","tg-green","tg-grey","tg-gold","tg-red"];
+function activeSpecialties(a){
+  if (a.specialties && a.specialties.length) return a.specialties;
+  var d = findDoctor(a.doctorId);
+  return d && d.subSpecialty ? [d.subSpecialty.replace(/ Psychiatry$/,"")] : [];
+}
+function activeLocations(a){ return (a.location || "").split(/\s*[,;]\s*/).filter(Boolean); }
+function locTagClass(name){
+  var known = { Sydney:"tg-pink", Melbourne:"tg-purple", Perth:"tg-orange", Townsville:"tg-blue", Brisbane:"tg-green", Canberra:"tg-grey" };
+  if (known[name]) return known[name];
+  var h = 0; for (var i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
+  return LOC_TAG_CLASSES[h % LOC_TAG_CLASSES.length];
+}
+function specTagsHtml(a){ return activeSpecialties(a).map(function(sp){ return '<span class="ad-tag '+(SPEC_TAG_CLASS[sp]||"tg-grey")+'">'+escapeHtml(sp)+'</span>'; }).join(""); }
+function locTagsHtml(a){ return activeLocations(a).map(function(l){ return '<span class="ad-tag '+locTagClass(l)+'">'+escapeHtml(l)+'</span>'; }).join(""); }
 function activeStatusPill(status){
   return '<span class="ad-pill '+(ACTIVE_STATUS_CLASS[status]||"")+'"><span class="ad-dot"></span>'+escapeHtml(status)+'</span>';
 }
 
 function activeCardHtml(a){
   var d = findDoctor(a.doctorId); if (!d) return "";
-  var subs = (d.subSpecialty || "").split(/\s*[,;\/]\s*/).filter(Boolean).slice(0, 3);
-  var tags = subs.map(function(s){ return '<span class="ad-tag ad-tag-sub">'+escapeHtml(s.replace(/ Psychiatry$/,""))+'</span>'; }).join("");
-  if (!tags && d.position) tags = '<span class="ad-tag">'+escapeHtml(d.position)+'</span>';
+  var tags = specTagsHtml(a);
+  if (!tags && d.position) tags = '<span class="ad-tag tg-grey">'+escapeHtml(d.position)+'</span>';
   var dates = activeDatesText(a);
   return '<div class="ad-card" draggable="true" data-ad-id="'+a.id+'" data-action="open-active-edit" data-id="'+a.id+'">'+
     '<div class="ad-card-head"><div class="ad-name">'+escapeHtml(d.name)+'</div>'+
       '<button type="button" class="btn-icon" data-action="quick-view-doctor" data-id="'+d.id+'" title="Quick view" aria-label="Quick view '+escapeHtml(d.name)+'">&#128065;</button></div>'+
     (tags ? '<div class="ad-tags">'+tags+'</div>' : '')+
     (dates ? '<div class="ad-line">'+dates+'</div>' : '')+
-    (a.location ? '<div class="ad-tags"><span class="ad-tag ad-tag-loc">'+escapeHtml(a.location)+'</span></div>' : '')+
+    (a.location ? '<div class="ad-tags">'+locTagsHtml(a)+'</div>' : '')+
     (a.rate ? '<div class="ad-line">'+fmtMoney0(revNum(a.rate))+'</div>' : '')+
     (a.notes ? '<div class="ad-notes">'+escapeHtml(a.notes.length > 160 ? a.notes.slice(0,160)+"…" : a.notes)+'</div>' : '')+
     '<div>'+activeStatusPill(a.status)+'</div>'+
@@ -3479,7 +3511,7 @@ function renderActiveDoctors(){
   var list = state.activeDoctors.filter(function(a){
     var d = findDoctor(a.doctorId); if (!d) return false;
     if (!q) return true;
-    return [d.name, d.subSpecialty, d.position, a.location, a.notes].join(" ").toLowerCase().indexOf(q) >= 0;
+    return [d.name, d.subSpecialty, d.position, a.location, a.notes, (a.specialties||[]).join(" ")].join(" ").toLowerCase().indexOf(q) >= 0;
   });
   var byStatus = {}; ACTIVE_STATUSES.forEach(function(s){ byStatus[s] = []; });
   list.forEach(function(a){ (byStatus[a.status] || byStatus.New).push(a); });
@@ -3503,13 +3535,13 @@ function renderActiveDoctors(){
 
   if (af.view === "list"){
     var rows = list.slice().sort(function(x,y){ return ACTIVE_STATUSES.indexOf(x.status) - ACTIVE_STATUSES.indexOf(y.status) || (dateKey(x) < dateKey(y) ? -1 : 1); });
-    html += '<div class="table-wrap"><table><thead><tr><th class="checkcell"></th><th>Doctor</th><th>Sub-specialty</th><th>Status</th><th>Dates</th><th>Location</th><th class="num">Rate</th><th>Notes</th></tr></thead><tbody>';
+    html += '<div class="table-wrap"><table><thead><tr><th class="checkcell"></th><th>Name</th><th>Status</th><th>Specialty</th><th>Available dates</th><th>Locations willing to work</th><th class="num">Rate</th><th>Notes</th></tr></thead><tbody>';
     rows.forEach(function(a){
       var d = findDoctor(a.doctorId);
       html += '<tr data-action="open-active-edit" data-id="'+a.id+'">'+
         '<td class="checkcell"><button type="button" class="btn-icon" data-action="quick-view-doctor" data-id="'+d.id+'" title="Quick view">&#128065;</button></td>'+
-        '<td class="name">'+escapeHtml(d.name)+'</td><td>'+escapeHtml(d.subSpecialty||"-")+'</td><td>'+activeStatusPill(a.status)+'</td>'+
-        '<td>'+(activeDatesText(a)||"-")+'</td><td>'+escapeHtml(a.location||"-")+'</td><td class="num">'+(a.rate?fmtMoney0(revNum(a.rate)):"-")+'</td>'+
+        '<td class="name">'+escapeHtml(d.name)+'</td><td>'+activeStatusPill(a.status)+'</td><td><div class="ad-tags">'+(specTagsHtml(a)||"-")+'</div></td>'+
+        '<td style="white-space:nowrap;">'+(activeDatesText(a)||"-")+'</td><td><div class="ad-tags">'+(locTagsHtml(a)||"-")+'</div></td><td class="num">'+(a.rate?fmtMoney0(revNum(a.rate)):"-")+'</td>'+
         '<td><div class="folder-last-note" style="max-width:320px;">'+escapeHtml(a.notes||"")+'</div></td></tr>';
     });
     return html + '</tbody></table></div>';
@@ -3552,7 +3584,11 @@ function activeEditModalHtml(a){
     '<div class="form-row"><label>Rate (per day)</label><input type="number" step="1" min="0" name="rate" value="'+escapeHtml(a.rate)+'" /></div></div>'+
     '<div class="two-col"><div class="form-row"><label>Available from</label><input type="date" name="availableFrom" value="'+escapeHtml(a.availableFrom)+'" /></div>'+
     '<div class="form-row"><label>Available to</label><input type="date" name="availableTo" value="'+escapeHtml(a.availableTo)+'" /></div></div>'+
-    '<div class="form-row"><label>Location</label><input type="text" name="location" value="'+escapeHtml(a.location)+'" placeholder="e.g. Brisbane, Townsville, Remote" /></div>'+
+    '<div class="form-row"><label>Specialty</label><div class="ad-spec-pick">'+ACTIVE_SPECIALTIES.concat((a.specialties||[]).filter(function(x){ return ACTIVE_SPECIALTIES.indexOf(x) < 0; })).map(function(sp){
+      var on = activeSpecialties(a).indexOf(sp) >= 0;
+      return '<label class="ad-spec-opt"><input type="checkbox" name="specialties" value="'+escapeHtml(sp)+'"'+(on?" checked":"")+' /> '+escapeHtml(sp)+'</label>';
+    }).join("")+'</div></div>'+
+    '<div class="form-row"><label>Locations willing to work</label><input type="text" name="location" value="'+escapeHtml(a.location)+'" placeholder="Separate with commas, e.g. Sydney, Melbourne, Perth" /></div>'+
     '<div class="form-row"><label>Notes / next step</label><textarea name="notes" rows="4" placeholder="e.g. Follow up with Nik at Freo re March cover">'+escapeHtml(a.notes)+'</textarea></div>'+
     '<div class="form-actions" style="justify-content:space-between;">'+
       '<div><button type="button" class="btn btn-danger" data-action="active-remove" data-id="'+a.id+'">Remove from Active</button> '+
@@ -8161,7 +8197,7 @@ document.addEventListener("submit", function(e){
     updateTemplate(form.getAttribute("data-id"), { name:fd.get("name"), subject:fd.get("subject"), body:fd.get("body") });
     closeModal(); persist();
   } else if (action === "submit-active-edit"){
-    updateActiveDoctor(form.getAttribute("data-id"), { status: fd.get("status") || "New", rate: fd.get("rate") || "",
+    updateActiveDoctor(form.getAttribute("data-id"), { status: fd.get("status") || "New", rate: fd.get("rate") || "", specialties: fd.getAll("specialties"),
       availableFrom: fd.get("availableFrom") || "", availableTo: fd.get("availableTo") || "",
       location: (fd.get("location")||"").trim(), notes: (fd.get("notes")||"").trim() });
     closeModal(); toast("Saved."); render();
