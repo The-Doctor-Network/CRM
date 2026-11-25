@@ -75,8 +75,7 @@ Deno.serve(async (req: Request) => {
   if (insErr || !conf) return json({ error: "Could not create the confirmation link." }, 500);
 
   const link = `${CONFIRM_PAGE}?token=${conf.token}`;
-  const button = `<p style="margin:24px 0;"><a href="${link}" style="display:inline-block;background:#2F5D46;color:#ffffff;text-decoration:none;font-weight:bold;padding:13px 26px;border-radius:999px;font-size:15px;">Accept booking</a></p>` +
-    `<p style="font-size:12px;color:#6B7478;margin-top:-8px;">Or open this link: <a href="${link}" style="color:#2F5D46;">${link}</a></p>`;
+  const button = `<p style="margin:16px 0;"><a href="${link}" style="display:inline-block;background:#2F5D46;color:#ffffff;text-decoration:none;font-weight:bold;padding:8px 18px;border-radius:999px;font-size:13px;">Accept booking</a></p>`;
   // The Accept button goes straight after the "Please ... Accept ..." line if there is one, so the
   // recipient sees it before the detail; otherwise at the end.
   let html = bodyHtml;

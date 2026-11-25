@@ -873,6 +873,10 @@ td.checkcell, th.checkcell{width:34px; text-align:center;}
   .confetti-container{display:none;}
 }
 .ad-prompt{margin:0 0 10px;font-size:13px;color:#6B7478;line-height:1.45;}
+.ct-chip{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:999px;background:var(--paper-100);color:var(--ink-600);}
+.ct-chip.amber{background:#FDF0D8;color:#8A5A00;}
+.ct-chip.red{background:#FBE3DD;color:#A12F14;}
+.ct-banner{display:flex;gap:10px;align-items:center;padding:12px 16px;margin:0 0 18px;border-radius:12px;background:#FDF0D8;color:#6B4600;text-decoration:none;font-size:13.5px;}
 </style>
 </head>
 <body>
@@ -2235,7 +2239,8 @@ function loadInitialData(){
     sbFetchAll("folders"),
     sbFetchAll("folder_members"),
     sbFetchAll("active_doctors"),
-    sbFetchAll("placement_confirmations")
+    sbFetchAll("placement_confirmations"),
+    sbFetchAll("contracts")
   ]).then(function(results){
     state.doctors = (results[0]||[]).map(rowToDoctor);
     state.hospitals = (results[1]||[]).map(rowToHospital);
@@ -2269,6 +2274,7 @@ function loadInitialData(){
     state.folderMembers = (results[20]||[]).map(rowToFolderMember).filter(function(m){ return myFolderIds[m.folderId]; });
     state.activeDoctors = (results[21]||[]).map(rowToActiveDoctor).filter(function(a){ return isMine(a.ownerUserId); });
     state.placementConfirmations = (results[22]||[]).map(rowToPlacementConfirmation);
+    state.contracts = (results[23]||[]).map(rowToContract);
     maybeCreateStorageCheckTask();
     maybeCreateAnnualSurveyTask();
     sweepDocumentExpiries();
@@ -3283,6 +3289,7 @@ function renderShell(bodyHtml, activeKey){
         navItem("#/timesheets","Timesheets", activeKey==="timesheets", "timesheets")+
         navItem("#/invoices","Invoices", activeKey==="invoices", "invoices")+
         navItem("#/revenue","Revenue Tracker", activeKey==="revenue", "revenue")+
+        navItem("#/contracts","Panels & tenders", activeKey==="contracts", "contracts", contractsExpiringSoon().length || null)+
       '</div>'+
       '<div class="rail-foot">'+
         navItem("#/settings","Settings", activeKey==="settings", "settings")+
@@ -3476,6 +3483,7 @@ var NAV_ICONS = {
   invoices: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8M12 17.5v-11"/>',
   tasks: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/>',
   settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  contracts: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   pulse: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   arrow: '<path d="M7 17 17 7M7 7h10v10"/>'
@@ -3484,7 +3492,7 @@ function navIcon(name, cls){
   return '<svg class="'+(cls||"nav-ico")+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(NAV_ICONS[name]||"")+'</svg>';
 }
 var PAGE_TITLES = { home:"Overview", doctors:"Doctors", active:"Active Doctors", folders:"Folders", hospitals:"Hospitals", clients:"Clients",
-  campaigns:"Campaigns", jobs:"Jobs", placements:"Placements", revenue:"Revenue Tracker", timesheets:"Timesheets", invoices:"Invoices", tasks:"Tasks", settings:"Settings" };
+  campaigns:"Campaigns", jobs:"Jobs", placements:"Placements", revenue:"Revenue Tracker", contracts:"Panels & tenders", timesheets:"Timesheets", invoices:"Invoices", tasks:"Tasks", settings:"Settings" };
 
 function openTaskCount(){
   var horizon = addDaysISO(todayISO(), 7);
@@ -3542,6 +3550,11 @@ function renderOverview(){
     }).join("")+'</div>'+
     '<div class="ov-card-foot"><a class="ov-link" href="#/active">Open Active Doctors '+navIcon("arrow","ov-arrow")+'</a></div></div>';
 
+  var ctSoon = contractsExpiringSoon();
+  if (ctSoon.length){
+    html += '<a class="ct-banner" href="#/contracts">'+navIcon("contracts","ov-ico")+'<span><strong>'+ctSoon.length+' contract'+(ctSoon.length===1?"":"s")+' expiring within 6 months:</strong> '+
+      ctSoon.slice(0,3).map(function(c){ return escapeHtml(c.name)+' ('+fmtDate(c.endDate)+')'; }).join(", ")+(ctSoon.length>3?", ...":"")+'</span></a>';
+  }
   html += '<div class="ov-grid">'+next+pipe+'</div>';
 
   // Doctors available + live vacancies
@@ -4415,6 +4428,137 @@ function refreshPlacementFormRevenue(form){
   var pv = form.querySelector("#pf-rev-preview"); if (pv) pv.innerHTML = placementPreviewText(p);
 }
 
+
+/* ---------- Panels & tenders (contracts with expiry alerts) ---------- */
+// Expiry tasks (6 and 3 months out) are created by a database trigger whenever a contract is saved.
+var CONTRACT_TYPES = ["Panel","Tender","Agency agreement","Standing offer","Preferred supplier","Other"];
+var CONTRACT_STATUSES = ["Active","Pending","Applied","Holding over","Expired","Ended","Unsuccessful"];
+var CONTRACT_CLOSED = ["Expired","Ended","Unsuccessful"];
+function rowToContract(r){
+  return { id: r.id, name: r.name || "", buyer: r.buyer || "", hospitalId: r.hospital_id || "", type: r.contract_type || "Panel",
+    status: r.status || "Active", reference: r.reference || "", startDate: r.start_date || "", endDate: r.end_date || "",
+    extensionOptions: r.extension_options || "", contactName: r.contact_name || "", contactTitle: r.contact_title || "",
+    contactEmail: r.contact_email || "", contactPhone: r.contact_phone || "", portalUrl: r.portal_url || "", notes: r.notes || "",
+    ownerUserId: r.owner_user_id || "" };
+}
+function contractToRow(c){
+  return { id: c.id, name: c.name, buyer: c.buyer || null, hospital_id: c.hospitalId || null, contract_type: c.type || "Panel",
+    status: c.status || "Active", reference: c.reference || null, start_date: c.startDate || null, end_date: c.endDate || null,
+    extension_options: c.extensionOptions || null, contact_name: c.contactName || null, contact_title: c.contactTitle || null,
+    contact_email: c.contactEmail || null, contact_phone: c.contactPhone || null, portal_url: c.portalUrl || null, notes: c.notes || null,
+    updated_at: new Date().toISOString() };
+}
+function findContract(id){ var l = state.contracts || []; for (var i=0;i<l.length;i++){ if (l[i].id===id) return l[i]; } return null; }
+function contractDaysLeft(c){
+  if (!c.endDate) return null;
+  var t = new Date(todayISO()+"T00:00:00"), e = new Date(c.endDate+"T00:00:00");
+  return Math.round((e - t) / 86400000);
+}
+function contractIsOpen(c){ return CONTRACT_CLOSED.indexOf(c.status) < 0; }
+function contractExpiryLevel(c){
+  var dl = contractDaysLeft(c);
+  if (!contractIsOpen(c) || dl === null) return "";
+  if (dl < 0) return "ended";
+  if (addDaysISO(todayISO(), 0) >= monthsBeforeISO(c.endDate, 3)) return "red";
+  if (todayISO() >= monthsBeforeISO(c.endDate, 6)) return "amber";
+  return "";
+}
+function monthsBeforeISO(iso, m){
+  var p = iso.split("-"), y = +p[0], mo = +p[1] - m, d = +p[2];
+  while (mo < 1){ mo += 12; y--; }
+  var last = new Date(y, mo, 0).getDate();
+  return y + "-" + pad2(mo) + "-" + pad2(Math.min(d, last));
+}
+function contractsExpiringSoon(){
+  return (state.contracts || []).filter(function(c){ var l = contractExpiryLevel(c); return l === "amber" || l === "red" || l === "ended"; });
+}
+function contractExpiryChip(c){
+  var dl = contractDaysLeft(c);
+  if (dl === null) return '<span class="ct-chip">No end date</span>';
+  if (!contractIsOpen(c)) return '<span class="ct-chip">'+escapeHtml(c.status)+'</span>';
+  var lvl = contractExpiryLevel(c);
+  var txt;
+  if (dl < 0) txt = "Ended " + (-dl) + " day" + (dl===-1?"":"s") + " ago";
+  else if (dl === 0) txt = "Ends today";
+  else if (dl < 62) txt = dl + " day" + (dl===1?"":"s") + " left";
+  else { var mths = Math.floor(dl / 30.44); txt = mths >= 24 ? (Math.floor(mths/12) + " years left") : (mths + " months left"); }
+  return '<span class="ct-chip '+(lvl==="ended"?"red":lvl)+'">'+txt+'</span>';
+}
+function reloadContractTasks(){
+  return sb.from("tasks").select("*").eq("linked_type", "contract").then(function(res){
+    if (!res || !res.data) return;
+    state.tasks = state.tasks.filter(function(t){ return t.linkedType !== "contract"; })
+      .concat(res.data.map(rowToTask).filter(function(t){ return isMine(t.ownerUserId); }));
+    render();
+  });
+}
+function saveContract(c, isNew){
+  var row = contractToRow(c);
+  var q = isNew ? sb.from("contracts").insert(row) : sb.from("contracts").update(row).eq("id", c.id);
+  return q.then(function(res){
+    if (res.error){ sbRowError("save contract", res.error); toast("Couldn't save the contract."); return; }
+    setTimeout(reloadContractTasks, 400);
+  });
+}
+function renderContracts(){
+  var cf = uiFilters.contracts || (uiFilters.contracts = { q:"", show:"current" });
+  var all = state.contracts || [];
+  var q = (cf.q || "").toLowerCase();
+  var list = all.filter(function(c){
+    if (cf.show === "current" && !contractIsOpen(c)) return false;
+    if (!q) return true;
+    return [c.name, c.buyer, c.reference, c.type, c.contactName, c.notes].join(" ").toLowerCase().indexOf(q) >= 0;
+  }).sort(function(a,b){ return (a.endDate||"9999") < (b.endDate||"9999") ? -1 : (a.endDate||"9999") > (b.endDate||"9999") ? 1 : 0; });
+  var open = all.filter(contractIsOpen), soon = contractsExpiringSoon();
+  var html = '<div class="page-head"><div><h1>Panels &amp; tenders</h1><div class="sub">'+open.length+' current contract'+(open.length===1?"":"s")+
+    (soon.length ? ' &middot; <span class="ov-warn">'+soon.length+' expiring within 6 months</span>' : '')+'</div></div>'+
+    '<button class="btn btn-primary" type="button" data-action="open-contract-edit">+ Add contract</button></div>';
+  html += '<p class="ad-hint" style="margin-top:0;">Add every panel, tender and agency agreement here with its end date. You\'ll get a task 6 months and again 3 months before it ends so nothing lapses.</p>';
+  html += '<div class="rev-controls"><div class="ad-views">'+
+      '<button type="button" class="ad-view'+(cf.show==="current"?" on":"")+'" data-action="contracts-show" data-show="current">Current</button>'+
+      '<button type="button" class="ad-view'+(cf.show==="all"?" on":"")+'" data-action="contracts-show" data-show="all">All</button></div>'+
+    '<input type="text" id="contracts-filter" class="ad-search" placeholder="Filter by name, buyer, reference, contact..." value="'+escapeHtml(cf.q||"")+'" /></div>';
+  if (!all.length){
+    return html + '<div class="empty"><h3>No contracts yet</h3><p>Add your panels, tenders and agency agreements to track their end dates.</p>'+
+      '<button class="btn btn-primary" type="button" data-action="open-contract-edit">Add a contract</button></div>';
+  }
+  html += '<div class="table-wrap"><table><thead><tr><th>Contract</th><th>Type</th><th>Status</th><th>Start</th><th>End</th><th>Expiry</th><th>Contact</th></tr></thead><tbody>';
+  list.forEach(function(c){
+    html += '<tr data-action="open-contract-edit" data-id="'+c.id+'">'+
+      '<td class="name">'+escapeHtml(c.name)+'<div class="folder-last-note">'+escapeHtml([c.buyer, c.reference].filter(Boolean).join(" · "))+'</div></td>'+
+      '<td>'+escapeHtml(c.type)+'</td><td>'+escapeHtml(c.status)+'</td>'+
+      '<td style="white-space:nowrap;">'+fmtDate(c.startDate)+'</td><td style="white-space:nowrap;">'+fmtDate(c.endDate)+'</td>'+
+      '<td style="white-space:nowrap;">'+contractExpiryChip(c)+'</td>'+
+      '<td>'+escapeHtml(c.contactName||"-")+(c.contactTitle?'<div class="folder-last-note">'+escapeHtml(c.contactTitle)+'</div>':'')+
+        (c.contactEmail?'<div class="folder-last-note"><a href="mailto:'+escapeHtml(c.contactEmail)+'" data-stop="1">'+escapeHtml(c.contactEmail)+'</a></div>':'')+'</td></tr>';
+  });
+  if (!list.length) html += '<tr><td colspan="7" class="sub">No contracts match.</td></tr>';
+  return html + '</tbody></table></div>';
+}
+function contractEditModalHtml(c){
+  var isNew = !c; c = c || { type:"Panel", status:"Active" };
+  var f = function(label, name, val, type, ph){ return '<div class="form-row"><label>'+label+'</label><input type="'+(type||"text")+'" name="'+name+'" value="'+escapeHtml(val||"")+'"'+(ph?' placeholder="'+escapeHtml(ph)+'"':'')+' /></div>'; };
+  var sel = function(label, name, opts, val){ return '<div class="form-row"><label>'+label+'</label><select name="'+name+'">'+opts.map(function(o){ return '<option'+(o===val?" selected":"")+'>'+escapeHtml(o)+'</option>'; }).join("")+'</select></div>'; };
+  var tasks = isNew ? [] : state.tasks.filter(function(t){ return t.linkedType === "contract" && t.linkedId === c.id && !t.done; });
+  return '<h2>'+(isNew ? "Add contract" : escapeHtml(c.name))+'</h2>'+
+    '<form data-action="submit-contract" data-id="'+(isNew?"":c.id)+'">'+
+    f("Contract name *", "name", c.name, "text", "e.g. NSW Health Medical Locum Panel")+
+    '<div class="two-col">'+f("Buyer / health service", "buyer", c.buyer, "text", "e.g. Illawarra Shoalhaven LHD")+f("Reference no.", "reference", c.reference)+'</div>'+
+    '<div class="two-col">'+sel("Type", "type", CONTRACT_TYPES, c.type)+sel("Status", "status", CONTRACT_STATUSES, c.status)+'</div>'+
+    '<div class="two-col">'+f("Start date", "startDate", c.startDate, "date")+f("End date", "endDate", c.endDate, "date")+'</div>'+
+    f("Extension / holding-over options", "extensionOptions", c.extensionOptions, "text", "e.g. 1 + 1 year options")+
+    '<div class="two-col">'+f("Contact person", "contactName", c.contactName)+f("Their role", "contactTitle", c.contactTitle)+'</div>'+
+    '<div class="two-col">'+f("Contact email", "contactEmail", c.contactEmail, "email")+f("Contact phone", "contactPhone", c.contactPhone)+'</div>'+
+    f("Portal / tender link", "portalUrl", c.portalUrl, "url", "https://")+
+    '<div class="form-row"><label>Notes (fees, terms, other contacts)</label><textarea name="notes" rows="6">'+escapeHtml(c.notes||"")+'</textarea></div>'+
+    (isNew ? '<p class="ad-hint">Renewal reminders are added to your tasks 6 and 3 months before the end date.</p>' :
+      (tasks.length ? '<div class="form-row"><label>Renewal reminders</label>'+tasks.map(function(t){ return '<div class="folder-last-note">'+fmtDate(t.dueDate)+' &middot; '+escapeHtml(t.title.replace(/^Contract expiry: /,""))+'</div>'; }).join("")+'</div>' : ''))+
+    '<div class="form-actions" style="justify-content:space-between;"><div>'+
+      (isNew ? '' : '<button type="button" class="btn btn-danger" data-action="contract-delete-ask" data-id="'+c.id+'">Delete</button>')+'</div>'+
+      '<div><button type="button" class="btn" data-action="close-modal">Cancel</button> <button type="submit" class="btn btn-primary">Save</button></div>'+
+    '</div></form>';
+}
+
 /* ---------- Folders (groups of doctors, e.g. "Active doctors", "RANZCP Congress 2026") ---------- */
 
 function rowToFolder(r){
@@ -4896,6 +5040,7 @@ function taskRowHtml(t, today){
   else if (t.linkedType === "hospital"){ var h = findHospital(t.linkedId); if (h){ label = h.name; href = "#/hospitals/"+h.id; } }
   else if (t.linkedType === "client"){ var c = findClient(t.linkedId); if (c){ label = c.name; href = "#/clients/"+c.id; } }
   else if (t.linkedType === "placement"){ var pl = findPlacement(t.linkedId); if (pl){ var pd = findDoctor(pl.doctorId); label = pd ? pd.name : (pl.jobTitle||"Placement"); href = "#/placements/"+pl.id; } }
+  else if (t.linkedType === "contract"){ var tct = findContract(t.linkedId); if (tct){ label = tct.name; href = "#/contracts"; } }
   else if (t.linkedType === "doctor_birthday"){ var bd = findDoctor(t.linkedId); if (bd){ label = bd.name; href = "#/doctors/"+bd.id; } }
   else if (t.linkedType === "campaign_recipient"){ var tcr = findCampaignRecipient(t.linkedId); if (tcr){ var tcrHosp = findHospital(tcr.hospitalId); label = tcrHosp ? tcrHosp.name : "Campaign follow-up"; href = "#/campaigns/"+tcr.campaignId; } }
   var chipCls = t.dueDate < today ? "over" : (t.dueDate === today ? "today" : "");
@@ -7337,6 +7482,7 @@ function render(){
   else if (key === "placements" && route[1]){ body = renderPlacementDetail(route[1], route[2]); }
   else if (key === "placements"){ body = renderPlacementsList(); }
   else if (key === "revenue"){ body = renderRevenueTracker(); }
+  else if (key === "contracts"){ body = renderContracts(); }
   else if (key === "active"){ body = renderActiveDoctors(); }
   else if (key === "timesheets" && route[1]){ body = renderTimesheetDetail(route[1]); }
   else if (key === "timesheets"){ body = renderTimesheetsList(); }
@@ -7720,6 +7866,19 @@ document.addEventListener("click", function(e){
     if (aaBox){ aaBox.innerHTML = activeAddResultsHtml(aaSearch ? aaSearch.value : ""); }
     if (aaDoc) toast(aaDoc.name + " added to Active Doctors (" + aaStatus + ").");
     render();
+  }
+  else if (action === "open-contract-edit"){ if (e.target.closest && e.target.closest("[data-stop]")) return; openModal(contractEditModalHtml(findContract(actEl.getAttribute("data-id"))), "lg"); }
+  else if (action === "contracts-show"){ (uiFilters.contracts = uiFilters.contracts || { q:"" }).show = actEl.getAttribute("data-show"); render(); }
+  else if (action === "contract-delete-ask"){
+    var cdc = findContract(actEl.getAttribute("data-id"));
+    if (cdc) openModal('<h2>Delete contract?</h2><p>This permanently deletes <strong>'+escapeHtml(cdc.name)+'</strong> and its open renewal reminders. This can\'t be undone.</p>'+
+      '<div class="form-actions"><button type="button" class="btn" data-action="close-modal">Cancel</button> <button type="button" class="btn btn-danger" data-action="contract-delete" data-id="'+cdc.id+'">Delete</button></div>');
+  }
+  else if (action === "contract-delete"){
+    var cdId = actEl.getAttribute("data-id");
+    state.contracts = state.contracts.filter(function(c){ return c.id !== cdId; });
+    state.tasks = state.tasks.filter(function(t){ return !(t.linkedType === "contract" && t.linkedId === cdId && !t.done); });
+    sbDelete("contracts", cdId); closeModal(); toast("Contract deleted."); render();
   }
   else if (action === "open-active-edit"){ var aeA = findActiveEntry(actEl.getAttribute("data-id")); if (aeA) openModal(activeEditModalHtml(aeA)); }
   else if (action === "active-remove"){
@@ -8204,6 +8363,12 @@ document.addEventListener("input", function(e){
     if (aasBox) aasBox.innerHTML = activeAddResultsHtml(e.target.value);
     return;
   }
+  if (e.target.id === "contracts-filter"){
+    (uiFilters.contracts = uiFilters.contracts || { show:"current" }).q = e.target.value; render();
+    var cfEl = document.getElementById("contracts-filter");
+    if (cfEl){ cfEl.focus(); var cfV = cfEl.value; cfEl.value = ""; cfEl.value = cfV; }
+    return;
+  }
   if (e.target.id === "active-filter"){
     uiFilters.active.q = e.target.value; render();
     var afEl = document.getElementById("active-filter");
@@ -8467,6 +8632,16 @@ document.addEventListener("submit", function(e){
       render();
     });
     return;
+  } else if (action === "submit-contract"){
+    var ctName = (fd.get("name")||"").trim();
+    if (!ctName){ toast("Please give the contract a name."); return; }
+    var ctId = form.getAttribute("data-id"), ctNew = !ctId;
+    var ct = ctNew ? { id: uid("ctr"), ownerUserId: currentUser ? currentUser.id : "" } : findContract(ctId);
+    ["buyer","reference","type","status","startDate","endDate","extensionOptions","contactName","contactTitle","contactEmail","contactPhone","portalUrl","notes"].forEach(function(k){ ct[k] = (fd.get(k)||"").trim(); });
+    ct.name = ctName;
+    if (ctNew){ state.contracts = (state.contracts || []).concat([ct]); }
+    saveContract(ct, ctNew);
+    closeModal(); toast(ctNew ? "Contract added." : "Saved."); render();
   } else if (action === "submit-active-edit"){
     updateActiveDoctor(form.getAttribute("data-id"), { status: fd.get("status") || "New", rate: fd.get("rate") || "", specialties: fd.getAll("specialties"),
       availableFrom: fd.get("availableFrom") || "", availableTo: fd.get("availableTo") || "",
