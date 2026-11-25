@@ -414,6 +414,12 @@ td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
 .ad-tag.tg-orange{background:#F8E3D4; color:#8A4A1C;}
 .ad-tag.tg-blue{background:#DFEAF6; color:#2A5C8C;}
 .ad-tag.tg-red{background:#F7E0DE; color:#9A3329;}
+.ad-tag.tg-sub{background:#FFF1E8; color:#9A4A22; border:1px solid #F6D5C2;}
+.ad-subline{display:flex; flex-direction:column; gap:4px;}
+.ad-sublabel{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-400); font-weight:700;}
+.ad-subs{display:flex; flex-direction:column; gap:4px; margin-bottom:8px;}
+.ad-sub-row{display:flex; align-items:center; gap:10px; padding:5px 8px; border:1px solid var(--line); border-radius:8px; font-size:13px;}
+.ad-sub-row span:first-child{flex:1; font-weight:600;}
 .ad-spec-pick{display:flex; flex-wrap:wrap; gap:6px 14px;}
 .ad-spec-opt{display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:500 !important; color:var(--ink-900) !important; text-transform:none !important; letter-spacing:0 !important;}
 .ad-spec-opt input{width:auto; margin:0;}
@@ -3575,13 +3581,13 @@ function rowToActiveDoctor(r){
     availableFrom: r.available_from || "", availableTo: r.available_to || "", location: r.location || "",
     rate: r.rate === null || r.rate === undefined ? "" : String(r.rate), notes: r.notes || "",
     placementId: r.placement_id || "", addedBy: r.added_by || "", ownerUserId: r.owner_user_id || "",
-    specialties: r.specialties || [],
+    specialties: r.specialties || [], submissions: Array.isArray(r.submissions) ? r.submissions : [],
     addedAt: r.added_at ? new Date(r.added_at).getTime() : Date.now(), updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now() };
 }
 function activeDoctorToRow(a){
   return { id: a.id, doctor_id: a.doctorId, status: a.status, available_from: a.availableFrom || null, available_to: a.availableTo || null,
     location: a.location || null, rate: numOrNull(a.rate), notes: a.notes || null, placement_id: a.placementId || null,
-    specialties: a.specialties || [],
+    specialties: a.specialties || [], submissions: a.submissions || [],
     added_by: a.addedBy || null, updated_at: new Date().toISOString() };
 }
 function activeEntryFor(doctorId){
@@ -3643,6 +3649,35 @@ function locTagClass(name){
   var h = 0; for (var i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
   return LOC_TAG_CLASSES[h % LOC_TAG_CLASSES.length];
 }
+// Hospitals a doctor has been submitted to: [{ hospitalId, name, date }]
+function submissionName(sub){ var h = sub.hospitalId ? findHospital(sub.hospitalId) : null; return h ? h.name : (sub.name || "Hospital"); }
+function submissionsTagsHtml(a, limit){
+  var subs = a.submissions || []; if (!subs.length) return "";
+  var shown = subs.slice(0, limit || subs.length);
+  return shown.map(function(sub){ return '<span class="ad-tag tg-sub" title="Submitted '+escapeHtml(fmtShortDate(sub.date||""))+'">'+escapeHtml(submissionName(sub))+'</span>'; }).join("") +
+    (subs.length > shown.length ? '<span class="ad-tag tg-grey">+'+(subs.length-shown.length)+' more</span>' : '');
+}
+function activeSubmissionsEditorHtml(a){
+  var subs = a.submissions || [];
+  return '<div class="ad-subs" id="ad-subs-list">'+(subs.length ? subs.map(function(sub, i){
+      return '<div class="ad-sub-row"><span>'+escapeHtml(submissionName(sub))+'</span><span class="folder-last-note">'+escapeHtml(fmtShortDate(sub.date||""))+'</span>'+
+        '<button type="button" class="btn-icon btn-icon-danger" data-action="active-sub-remove" data-id="'+a.id+'" data-i="'+i+'" aria-label="Remove">&times;</button></div>';
+    }).join("") : '<div class="folder-last-note">Not submitted anywhere yet.</div>')+'</div>'+
+    '<input type="text" id="ad-sub-search" data-id="'+a.id+'" placeholder="Search hospitals to add..." autocomplete="off" />'+
+    '<div id="ad-sub-results" class="folder-add-results" style="max-height:200px;"></div>';
+}
+function activeSubResultsHtml(aId, q){
+  q = (q||"").trim(); if (q.length < 2) return "";
+  var ql = q.toLowerCase();
+  var a = findActiveEntry(aId); var have = {}; (a && a.submissions || []).forEach(function(s){ if (s.hospitalId) have[s.hospitalId] = true; });
+  var matches = state.hospitals.filter(function(h){ return (h.name||"").toLowerCase().indexOf(ql) >= 0; }).slice(0, 12);
+  var html = matches.map(function(h){
+    return '<div class="folder-add-row"><div><div class="folder-add-name">'+escapeHtml(h.name)+'</div><div class="folder-last-note">'+escapeHtml([h.city, h.region].filter(Boolean).join(", "))+'</div></div>'+
+      (have[h.id] ? '<span class="badge-in">Added</span>' : '<button type="button" class="btn btn-sm" data-action="active-sub-add" data-id="'+aId+'" data-hospital="'+h.id+'">Add</button>')+'</div>';
+  }).join("");
+  html += '<div class="folder-add-row"><div class="folder-last-note">Not in the CRM?</div><button type="button" class="btn btn-sm" data-action="active-sub-add" data-id="'+aId+'" data-name="'+escapeHtml(q)+'">Add "'+escapeHtml(q)+'"</button></div>';
+  return html;
+}
 function specTagsHtml(a){ return activeSpecialties(a).map(function(sp){ return '<span class="ad-tag '+(SPEC_TAG_CLASS[sp]||"tg-grey")+'">'+escapeHtml(sp)+'</span>'; }).join(""); }
 function locTagsHtml(a){ return activeLocations(a).map(function(l){ return '<span class="ad-tag '+locTagClass(l)+'">'+escapeHtml(l)+'</span>'; }).join(""); }
 function activeStatusPill(status){
@@ -3660,6 +3695,7 @@ function activeCardHtml(a){
     (tags ? '<div class="ad-tags">'+tags+'</div>' : '')+
     (dates ? '<div class="ad-line">'+dates+'</div>' : '')+
     (a.location ? '<div class="ad-tags">'+locTagsHtml(a)+'</div>' : '')+
+    ((a.submissions||[]).length ? '<div class="ad-subline"><span class="ad-sublabel">Submitted to</span><div class="ad-tags">'+submissionsTagsHtml(a, 4)+'</div></div>' : '')+
     (a.rate ? '<div class="ad-line">'+fmtMoney0(revNum(a.rate))+'</div>' : '')+
     (a.notes ? '<div class="ad-notes">'+escapeHtml(a.notes.length > 160 ? a.notes.slice(0,160)+"…" : a.notes)+'</div>' : '')+
     '<div>'+activeStatusPill(a.status)+'</div>'+
@@ -3672,7 +3708,7 @@ function renderActiveDoctors(){
   var list = state.activeDoctors.filter(function(a){
     var d = findDoctor(a.doctorId); if (!d) return false;
     if (!q) return true;
-    return [d.name, d.subSpecialty, d.position, a.location, a.notes, (a.specialties||[]).join(" ")].join(" ").toLowerCase().indexOf(q) >= 0;
+    return [d.name, d.subSpecialty, d.position, a.location, a.notes, (a.specialties||[]).join(" "), (a.submissions||[]).map(submissionName).join(" ")].join(" ").toLowerCase().indexOf(q) >= 0;
   });
   var byStatus = {}; ACTIVE_STATUSES.forEach(function(s){ byStatus[s] = []; });
   list.forEach(function(a){ (byStatus[a.status] || byStatus.New).push(a); });
@@ -3696,13 +3732,13 @@ function renderActiveDoctors(){
 
   if (af.view === "list"){
     var rows = list.slice().sort(function(x,y){ return ACTIVE_STATUSES.indexOf(x.status) - ACTIVE_STATUSES.indexOf(y.status) || (dateKey(x) < dateKey(y) ? -1 : 1); });
-    html += '<div class="table-wrap"><table><thead><tr><th class="checkcell"></th><th>Name</th><th>Status</th><th>Specialty</th><th>Available dates</th><th>Locations willing to work</th><th class="num">Rate</th><th>Notes</th></tr></thead><tbody>';
+    html += '<div class="table-wrap"><table><thead><tr><th class="checkcell"></th><th>Name</th><th>Status</th><th>Specialty</th><th>Available dates</th><th>Locations willing to work</th><th>Submitted to</th><th class="num">Rate</th><th>Notes</th></tr></thead><tbody>';
     rows.forEach(function(a){
       var d = findDoctor(a.doctorId);
       html += '<tr data-action="open-active-edit" data-id="'+a.id+'">'+
         '<td class="checkcell"><button type="button" class="btn-icon" data-action="quick-view-doctor" data-id="'+d.id+'" title="Quick view">&#128065;</button></td>'+
         '<td class="name">'+escapeHtml(d.name)+'</td><td>'+activeStatusPill(a.status)+'</td><td><div class="ad-tags">'+(specTagsHtml(a)||"-")+'</div></td>'+
-        '<td style="white-space:nowrap;">'+(activeDatesText(a)||"-")+'</td><td><div class="ad-tags">'+(locTagsHtml(a)||"-")+'</div></td><td class="num">'+(a.rate?fmtMoney0(revNum(a.rate)):"-")+'</td>'+
+        '<td style="white-space:nowrap;">'+(activeDatesText(a)||"-")+'</td><td><div class="ad-tags">'+(locTagsHtml(a)||"-")+'</div></td><td><div class="ad-tags">'+(submissionsTagsHtml(a)||"-")+'</div></td><td class="num">'+(a.rate?fmtMoney0(revNum(a.rate)):"-")+'</td>'+
         '<td><div class="folder-last-note" style="max-width:320px;">'+escapeHtml(a.notes||"")+'</div></td></tr>';
     });
     return html + '</tbody></table></div>';
@@ -3750,6 +3786,7 @@ function activeEditModalHtml(a){
       return '<label class="ad-spec-opt"><input type="checkbox" name="specialties" value="'+escapeHtml(sp)+'"'+(on?" checked":"")+' /> '+escapeHtml(sp)+'</label>';
     }).join("")+'</div></div>'+
     '<div class="form-row"><label>Locations willing to work</label><input type="text" name="location" value="'+escapeHtml(a.location)+'" placeholder="Separate with commas, e.g. Sydney, Melbourne, Perth" /></div>'+
+    '<div class="form-row"><label>Submitted to</label>'+activeSubmissionsEditorHtml(a)+'</div>'+
     '<div class="form-row"><label>Notes / next step</label><textarea name="notes" rows="4" placeholder="e.g. Follow up with Nik at Freo re March cover">'+escapeHtml(a.notes)+'</textarea></div>'+
     '<div class="form-actions" style="justify-content:space-between;">'+
       '<div><button type="button" class="btn btn-danger" data-action="active-remove" data-id="'+a.id+'">Remove from Active</button> '+
@@ -7646,6 +7683,27 @@ document.addEventListener("click", function(e){
     var ed = document.getElementById("conf-body"); if (ed) ed.focus();
     try { document.execCommand(actEl.getAttribute("data-cmd"), false, null); } catch (err) {}
   }
+  else if (action === "active-sub-add" || action === "active-sub-remove"){
+    var asA = findActiveEntry(actEl.getAttribute("data-id"));
+    if (asA){
+      var subs = (asA.submissions || []).slice();
+      if (action === "active-sub-add"){
+        subs.push(actEl.getAttribute("data-hospital") ? { hospitalId: actEl.getAttribute("data-hospital"), date: todayISO() } : { name: actEl.getAttribute("data-name"), date: todayISO() });
+      } else { subs.splice(parseInt(actEl.getAttribute("data-i"), 10), 1); }
+      var patch = { submissions: subs };
+      // first submission moves a New / Available doctor to Submitted
+      if (action === "active-sub-add" && (asA.status === "New" || asA.status === "Available")){
+        patch.status = "Submitted";
+        var stSel = document.querySelector('form[data-action="submit-active-edit"] select[name="status"]'); if (stSel) stSel.value = "Submitted";
+      }
+      updateActiveDoctor(asA.id, patch);
+      var listEl = document.getElementById("ad-subs-list");
+      if (listEl){ var tmp = document.createElement("div"); tmp.innerHTML = activeSubmissionsEditorHtml(asA); listEl.parentNode.replaceChild(tmp.firstChild, listEl); }
+      var srch = document.getElementById("ad-sub-search"), res = document.getElementById("ad-sub-results");
+      if (action === "active-sub-add" && srch){ srch.value = ""; if (res) res.innerHTML = ""; srch.focus(); }
+      render();
+    }
+  }
   else if (action === "active-view"){ uiFilters.active.view = actEl.getAttribute("data-view"); render(); }
   else if (action === "open-active-add"){
     openModal(activeAddModalHtml(actEl.getAttribute("data-status")));
@@ -8133,6 +8191,11 @@ document.addEventListener("paste", function(e){
 document.addEventListener("input", function(e){
   if (e.target.closest && e.target.closest('form[data-action="submit-add-placement"], form[data-action="submit-edit-placement"]')){
     refreshPlacementFormRevenue(e.target.closest("form"));
+  }
+  if (e.target.id === "ad-sub-search"){
+    var adr = document.getElementById("ad-sub-results");
+    if (adr) adr.innerHTML = activeSubResultsHtml(e.target.getAttribute("data-id"), e.target.value);
+    return;
   }
   if (e.target.id === "active-add-search"){
     var aasBox = document.getElementById("active-add-results");
