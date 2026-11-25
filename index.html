@@ -397,6 +397,7 @@ td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
 .ad-pill.ad-placed{background:#DDE8E1; color:#244A37;}
 .ad-add{border:1px dashed var(--line); background:none; border-radius:10px; padding:8px; font:inherit; font-size:12.5px; color:var(--ink-400); cursor:pointer;}
 .ad-add:hover{color:var(--teal-700); border-color:var(--teal-600);}
+.ad-hint{font-size:12.5px; color:var(--ink-400); margin:-4px 0 14px;}
 .ad-profile{display:flex; align-items:center; flex-wrap:wrap; gap:6px;}
 .rev-footnote{font-size:12px; color:var(--ink-400); margin-top:14px; max-width:820px;}
 .rev-mini{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
@@ -3502,13 +3503,14 @@ function renderActiveDoctors(){
     return html + '</tbody></table></div>';
   }
 
+  html += '<p class="ad-hint">Drag a card to another column to change its status, or click it to edit dates, location, rate and notes. Doctors you place are added here automatically as Placed.</p>';
   html += '<div class="ad-board">';
   ACTIVE_STATUSES.forEach(function(s){
     html += '<div class="ad-col" data-ad-status="'+s+'"><div class="ad-col-head">'+activeStatusPill(s)+'<span class="ad-count">'+byStatus[s].length+'</span></div>'+
       '<div class="ad-col-body">'+byStatus[s].map(activeCardHtml).join("")+
       '<button type="button" class="ad-add" data-action="open-active-add" data-status="'+s+'">+ Add doctor</button></div></div>';
   });
-  return html + '</div><p class="rev-footnote">Drag a card to another column to change its status, or click it to edit dates, location, rate and notes. Doctors you place are added here automatically as Placed.</p>';
+  return html + '</div>';
 }
 
 function activeAddModalHtml(status){
